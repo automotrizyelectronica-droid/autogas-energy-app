@@ -21,7 +21,7 @@ st.set_page_config(page_title=DATOS_TALLER["nombre"], layout="centered")
 
 # --- BASE DE DATOS ---
 def init_db():
-    conn = sqlite3.connect('autogas_final_v13.db', check_same_thread=False)
+    conn = sqlite3.connect('autogas_final_v14.db', check_same_thread=False)
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS vehiculos (placa TEXT PRIMARY KEY, marca TEXT, modelo TEXT, anio TEXT)')
     c.execute('''CREATE TABLE IF NOT EXISTS historial 
@@ -35,17 +35,11 @@ conn = init_db()
 # --- CLASE PDF PROFESIONAL ---
 class ReporteProfesional(FPDF):
     def header(self):
-        # Cabecera azul elegante
         self.set_fill_color(0, 51, 153)
         self.rect(0, 0, 210, 40, 'F')
-        
-        # Logo
         try:
-            # Usamos un logo temporal para el PDF
             self.image(DATOS_TALLER["logo_url"], 12, 8, 30)
-        except:
-            pass
-            
+        except: pass
         self.set_text_color(255, 255, 255)
         self.set_font('Arial', 'B', 18)
         self.set_xy(50, 10)
@@ -54,26 +48,18 @@ class ReporteProfesional(FPDF):
         self.set_x(50)
         self.cell(0, 5, DATOS_TALLER["direccion"], ln=True)
         self.set_x(50)
-        self.cell(0, 5, f"WhatsApp: {DATOS_TALLER['whatsapp']} | FB: {DATOS_TALLER['facebook']}", ln=True)
+        self.cell(0, 5, f"WhatsApp: {DATOS_TALLER['whatsapp']}", ln=True)
         self.ln(15)
-
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.set_text_color(128)
-        self.cell(0, 10, f'Informe generado por AUTOGAS ENERGY - Pagina {self.page_no()}', 0, 0, 'C')
 
 def generar_pdf_pro(row_h, v_data):
     pdf = ReporteProfesional()
     pdf.add_page()
     pdf.set_text_color(0, 0, 0)
-    
-    # Título
     pdf.set_font('Arial', 'B', 14)
     pdf.set_fill_color(230, 230, 230)
     pdf.cell(0, 10, f"REPORTE TECNICO DE MANTENIMIENTO", 0, 1, 'C', True)
     pdf.ln(5)
-
+    
     # Info Vehículo
     pdf.set_font('Arial', 'B', 10)
     pdf.cell(45, 8, "PLACA:", 1, 0, 'L', True); pdf.cell(50, 8, str(row_h['placa']), 1)
@@ -87,39 +73,32 @@ def generar_pdf_pro(row_h, v_data):
     pdf.cell(0, 8, f"DETALLE DE TRABAJOS (PAQUETE {row_h['paquete']})", 0, 1)
     pdf.set_font('Arial', '', 10)
     for t in row_h['tareas'].split(", "):
-        pdf.cell(10, 6, chr(149), 0); pdf.cell(0, 6, t, 0, 1) # chr(149) es un punto de lista
+        pdf.cell(10, 6, "-", 0); pdf.cell(0, 6, t, 0, 1)
 
     # Notas
     if row_h['notas']:
         pdf.ln(5)
         pdf.set_font('Arial', 'B', 11)
-        pdf.cell(0, 8, "OBSERVACIONES DEL TECNICO", 0, 1)
+        pdf.cell(0, 8, "OBSERVACIONES", 0, 1)
         pdf.set_font('Arial', 'I', 10)
         pdf.multi_cell(0, 6, row_h['notas'], 1)
 
-    # FOTOS PROFESIONALES
+    # Fotos
     if row_h['fotos_blob']:
         pdf.add_page()
         pdf.set_font('Arial', 'B', 12)
-        pdf.cell(0, 10, "EVIDENCIA FOTOGRAFICA DEL SERVICIO", 0, 1, 'C')
-        pdf.ln(5)
-        
+        pdf.cell(0, 10, "EVIDENCIA FOTOGRAFICA", 0, 1, 'C')
         fotos = row_h['fotos_blob'].split(b"---SEP---")
         for f_data in fotos:
             if f_data:
-                # Crear archivo temporal para que fpdf lo lea correctamente
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
                     tmp.write(f_data)
                     tmp_path = tmp.name
-                
-                # Insertar imagen y luego borrar temporal
                 pdf.image(tmp_path, x=25, w=160)
                 os.remove(tmp_path)
                 pdf.ln(10)
-
     return pdf.output(dest='S').encode('latin-1')
 
-# --- PAQUETES --- (Tus datos exactos)
 PAQUETES = {
     "A": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
     "B": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Cambio o inspeccion de bujias", "Scanneo de motor", "siliconeo de motor"],
@@ -129,7 +108,6 @@ PAQUETES = {
     "F": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio o inpeccion de bujias", "Limpieza de reductor de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "siliconeo de motor"]
 }
 
-# --- NAVEGACIÓN ---
 if 'view' not in st.session_state: st.session_state.view = 'inicio'
 if 'admin_step' not in st.session_state: st.session_state.admin_step = 1
 
@@ -151,54 +129,45 @@ elif st.session_state.view == 'admin_panel':
     if st.session_state.admin_step == 1:
         placa = st.text_input("PLACA").upper()
         if placa:
-            c = conn.cursor()
-            c.execute("SELECT * FROM vehiculos WHERE placa=?", (placa,))
-            v = c.fetchone()
-            ma, mo, an = st.text_input("Marca", value=v[1] if v else ""), st.text_input("Modelo", value=v[2] if v else ""), st.text_input("Año", value=v[3] if v else "")
-            km = st.number_input("Kilometraje Actual", min_value=0)
-            pa = st.selectbox("Paquete", ["A", "B", "C", "D", "E", "F"])
+            c = conn.cursor(); c.execute("SELECT * FROM vehiculos WHERE placa=?", (placa,)); v = c.fetchone()
+            ma, mo, an = st.text_input("Marca", v[1] if v else ""), st.text_input("Modelo", v[2] if v else ""), st.text_input("Año", v[3] if v else "")
+            km = st.number_input("KM Actual", min_value=0); pa = st.selectbox("Paquete", ["A","B","C","D","E","F"])
             if st.button("SIGUIENTE ➡️"):
                 st.session_state.temp = {"placa": placa, "marca": ma, "modelo": mo, "anio": an, "km": km, "paquete": pa, "nuevo": v is None}
                 st.session_state.admin_step = 2; st.rerun()
-    
     elif st.session_state.admin_step == 2:
         d = st.session_state.temp
         st.subheader(f"Hoja de Trabajo: {d['placa']}")
         tareas_ok = [t for t in PAQUETES[d['paquete']] if st.checkbox(t, value=True)]
-        notas = st.text_area("Cuadro de Observaciones")
+        notas = st.text_area("Observaciones")
         fotos = st.file_uploader("Adjuntar fotos", accept_multiple_files=True, type=['jpg', 'png', 'jpeg'])
-        
-        if st.button("✅ GUARDAR Y FINALIZAR"):
+        if st.button("✅ GUARDAR"):
             blobs = []
             if fotos:
                 for f in fotos:
-                    # Redimensionar para que no pesen tanto
-                    img = Image.open(f)
+                    img = Image.open(f).convert("RGB")
                     img.thumbnail((800, 800))
-                    output = io.BytesIO()
-                    img.save(output, format='JPEG', quality=70)
-                    blobs.append(output.getvalue())
-            
+                    out = io.BytesIO(); img.save(out, format='JPEG', quality=70)
+                    blobs.append(out.getvalue())
             f_blob = b"---SEP---".join(blobs)
             c = conn.cursor()
             if d['nuevo']: c.execute("INSERT INTO vehiculos VALUES (?,?,?,?)", (d['placa'], d['marca'], d['modelo'], d['anio']))
-            f_hoy = datetime.now().strftime("%d/%m/%Y")
             c.execute("INSERT INTO historial (fecha, placa, km_tablero, paquete, tareas, notas, fotos_blob) VALUES (?,?,?,?,?,?,?)",
-                      (f_hoy, d['placa'], d['km'], d['paquete'], ", ".join(tareas_ok), notas, f_blob))
-            conn.commit()
-            st.session_state.view = 'inicio'; st.rerun()
+                      (datetime.now().strftime("%d/%m/%Y"), d['placa'], d['km'], d['paquete'], ", ".join(tareas_ok), notas, f_blob))
+            conn.commit(); st.session_state.view = 'inicio'; st.rerun()
+
+elif st.session_state.view == 'cliente_placa':
+    if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
+    p_c = st.text_input("INGRESE SU PLACA").upper()
+    if st.button("CONSULTAR"):
+        if p_c: st.session_state.placa_cliente = p_c; st.session_state.view = 'cliente_menu'; st.rerun()
 
 elif st.session_state.view == 'cliente_menu':
     st.title(f"🚗 Placa: {st.session_state.placa_cliente}")
-    # ... (Botón Próximo Mantenimiento se mantiene igual) ...
+    if st.button("⬅️ REGRESAR AL BUSCADOR"): st.session_state.view = 'cliente_placa'; st.rerun()
     
-    if st.button("📋 MANTENIMIENTO ACTUAL", use_container_width=True):
-        df = pd.read_sql_query(f"SELECT * FROM historial WHERE placa='{st.session_state.placa_cliente}' ORDER BY id DESC", conn)
-        c = conn.cursor()
-        c.execute("SELECT * FROM vehiculos WHERE placa=?", (st.session_state.placa_cliente,))
-        v_data = c.fetchone()
-        
-        for _, row in df.iterrows():
-            with st.expander(f"📄 Servicio: {row['fecha']} - {row['km_tablero']} KM"):
-                pdf_bin = generar_pdf_pro(row, v_data)
-                st.download_button(f"📥 Imprimir Reporte Profesional", data=pdf_bin, file_name=f"Reporte_{row['placa']}.pdf", key=f"btn_{row['id']}")
+    if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
+        df = pd.read_sql_query(f"SELECT km_tablero FROM historial WHERE placa='{st.session_state.placa_cliente}' ORDER BY id DESC LIMIT 1", conn)
+        if not df.empty:
+            prox = int(df.iloc[0]['km_tablero']) + 5000
+            st.markdown(f"<div style='background-color:#d4edda; padding:2
