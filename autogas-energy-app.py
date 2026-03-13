@@ -7,6 +7,7 @@ import io
 import os
 import tempfile
 from PIL import Image
+import streamlit.components.v1 as components
 
 # --- CONFIGURACIÓN DE MARCA ---
 DATOS_TALLER = {
@@ -18,6 +19,18 @@ DATOS_TALLER = {
 }
 
 st.set_page_config(page_title=DATOS_TALLER["nombre"], layout="centered")
+
+# --- OPCIÓN 1: BLOQUEO DE SALIDA ACCIDENTAL (JavaScript) ---
+components.html(
+    """
+    <script>
+    window.onbeforeunload = function() {
+        return "¡Atención! Tienes un registro en curso. Si sales ahora, perderás los datos no guardados.";
+    };
+    </script>
+    """,
+    height=0,
+)
 
 # --- BASE DE DATOS ---
 def init_db():
@@ -99,6 +112,7 @@ def generar_pdf_pro(row_h, v_data):
                 pdf.ln(10)
     return pdf.output(dest='S').encode('latin-1')
 
+# --- PAQUETES ---
 PAQUETES = {
     "A": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
     "B": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Cambio o inspeccion de bujias", "Scanneo de motor", "siliconeo de motor"],
