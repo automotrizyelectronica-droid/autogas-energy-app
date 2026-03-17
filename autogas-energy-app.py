@@ -24,6 +24,7 @@ st.set_page_config(page_title=DATOS_TALLER["nombre"], layout="centered")
 components.html("<script>window.onbeforeunload = function() { return '¿Salir?'; };</script>", height=0)
 
 # --- CONEXIÓN GOOGLE ---
+@st.cache_resource
 def conectar_google():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -40,15 +41,15 @@ db_sheet, drive_service = conectar_google()
 
 def subir_foto_drive(file_bytes, nombre):
     try:
-        folder_id = st.secrets["GOOGLE_DRIVE_FOLDER_ID"]
+        # BUSQUEDA DIRECTA DEL ID EN SECRETS
+        f_id = st.secrets["GOOGLE_DRIVE_FOLDER_ID"]
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg', resumable=True)
-        file_metadata = {'name': nombre, 'parents': [folder_id]}
-        # IMPORTANTE: supportsAllDrives permite usar tu cuota de espacio
+        file_metadata = {'name': nombre, 'parents': [f_id]}
         file = drive_service.files().create(
             body=file_metadata, 
             media_body=media, 
             fields='id',
-            supportsAllDrives=True 
+            supportsAllDrives=True
         ).execute()
         return file.get('id')
     except Exception as e:
@@ -81,12 +82,12 @@ def generar_pdf_pro(reg):
     return pdf.output(dest='S').encode('latin-1')
 
 PAQUETES = {
-    "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion fugas", "Scanneo"],
-    "B": ["Paquete A + Bujias"],
-    "C": ["Paquete A + Filtro gas"],
-    "D": ["Mantenimiento Completo", "Limpieza inyectores", "Obturador", "Sensores"],
-    "E": ["Full Gas", "Inyectores Gas/Gasolina", "Regulacion", "Sensores"],
-    "F": ["Reductor Gas", "Calibracion", "Bujias"]
+    "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion fugas gas", "Inspeccion fugas aceite/refrig.", "Scanneo motor", "siliconeo motor"],
+    "B": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Bujias", "Inspeccion fugas", "Scanneo motor", "siliconeo motor"],
+    "C": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Filtro de gas", "Inspeccion fugas", "Scanneo motor", "siliconeo motor"],
+    "D": ["Mantenimiento Completo", "Inyectores Gasolina", "Filtro Gasolina", "Obturador", "Sensores", "Bujias", "Filtros", "Scanneo motor"],
+    "E": ["Full Gas", "Inyectores Gas", "Inyectores Gasolina", "Obturador", "Sensores", "Regulacion/Calibracion", "Filtros", "Scanneo motor"],
+    "F": ["Reductor Gas", "Regulacion/Calibracion", "Bujias", "Inspeccion fugas", "Scanneo motor", "siliconeo motor"]
 }
 
 # --- NAVEGACIÓN ---
@@ -100,6 +101,7 @@ if st.session_state.view == 'inicio':
     if col2.button("🛠️ ADMIN", use_container_width=True): st.session_state.view = 'login'; st.rerun()
 
 elif st.session_state.view == 'login':
+    if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
     u = st.text_input("Usuario"); p = st.text_input("Contraseña", type="password")
     if st.button("INGRESAR"):
         if u == "percy" and p == "autogas2026": st.session_state.view = 'admin_panel'; st.rerun()
@@ -131,6 +133,7 @@ elif st.session_state.view == 'admin_panel':
                 st.success("¡Guardado!"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
 
 elif st.session_state.view == 'cliente_placa':
+    if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
     p_c = st.text_input("INGRESE SU PLACA").upper()
     if st.button("CONSULTAR"):
         st.session_state.placa_cliente = p_c; st.session_state.view = 'cliente_menu'; st.rerun()
@@ -138,8 +141,11 @@ elif st.session_state.view == 'cliente_placa':
 elif st.session_state.view == 'cliente_menu':
     st.title(f"🚗 Placa: {st.session_state.placa_cliente}")
     df = pd.DataFrame(db_sheet.get_all_records())
-    # CORRECCIÓN AQUÍ: Agregado .str para evitar el AttributeError
-    hist = df[df['placa'].astype(str).str.upper() == st.session_state.placa_cliente].to_dict('records') if not df.empty else []
+    # BÚSQUEDA ROBUSTA
+    if not df.empty:
+        df.columns = [c.lower() for c in df.columns]
+        hist = df[df['placa'].astype(str).str.upper().str.strip() == st.session_state.placa_cliente.strip()].to_dict('records')
+    else: hist = []
     
     if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
         if hist:
@@ -148,7 +154,8 @@ elif st.session_state.view == 'cliente_menu':
         else: st.warning("Sin historial.")
 
     if st.button("📋 MANTENIMIENTO ACTUAL (HISTORIAL)", use_container_width=True):
+        if not hist: st.warning("Sin registros.")
         for r in reversed(hist):
-            with st.expander(f"Servicio {r['fecha']}"):
-                st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name=f"Reporte.pdf", key=f"btn_{r['km']}")
+            with st.expander(f"Servicio {r.get('fecha')} - {r.get('km')} KM"):
+                st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name=f"Reporte_{r.get('placa')}.pdf", key=f"btn_{r.get('km')}")
     if st.button("⬅️ VOLVER"): st.session_state.view = 'inicio'; st.rerun()
