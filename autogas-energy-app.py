@@ -17,52 +17,53 @@ DATOS_TALLER = {
     "logo_url": "https://i.postimg.cc/mD3mzc9v/logo-autogas.png"
 }
 ID_CARPETA_FOTOS = "1Vk6naUsEDgadg0GDcCrz0nY6MCXrI-1S"
+# COLOCA AQUÍ TU CORREO PERSONAL (Dueño de los 2TB)
+MI_CORREO_PERSONAL = "automotrizyelectronica@gmail.com" 
 
 st.set_page_config(page_title=DATOS_TALLER["nombre"], layout="centered")
 components.html("<script>window.onbeforeunload = function() { return '¿Salir?'; };</script>", height=0)
 
 # --- SERVICIOS GOOGLE ---
 def conectar():
-    creds = Credentials.from_service_account_info(
-        st.secrets["google_credentials"],
-        scopes=[
-            "https://www.googleapis.com/auth/spreadsheets",
-            "https://www.googleapis.com/auth/drive"
-        ]
-    )
+    creds = Credentials.from_service_account_info(st.secrets["google_credentials"], 
+            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
     return gspread.authorize(creds), build('drive', 'v3', credentials=creds)
 
 client, drive_service = conectar()
 db_sheet = client.open("DB_Autogas_Energy").sheet1
 
-# --- SUBIR FOTO (CORREGIDO) ---
-def subir_foto(file_bytes, nombre, mime_type):
+def subir_foto(file_bytes, nombre):
     try:
-        media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type)
-        metadata = {
-            'name': nombre,
-            'parents': [ID_CARPETA_FOTOS]
-        }
-
-        archivo = drive_service.files().create(
-            body=metadata,
-            media_body=media,
-            fields='id',
+        media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg')
+        metadata = {'name': nombre, 'parents': [ID_CARPETA_FOTOS]}
+        
+        # 1. Crear el archivo
+        f = drive_service.files().create(
+            body=metadata, 
+            media_body=media, 
+            fields='id', 
             supportsAllDrives=True
         ).execute()
-
-        file_id = archivo.get('id')
-
-        # Hacer pública la imagen
+        
+        file_id = f.get('id')
+        
+        # 2. TRANSFERIR PROPIEDAD (Para usar tus 2TB y evitar el error 403)
+        permission = {
+            'type': 'user',
+            'role': 'owner',
+            'emailAddress': MI_CORREO_PERSONAL
+        }
+        # Esto hace que el archivo pase a tu cuenta personal
         drive_service.permissions().create(
             fileId=file_id,
-            body={'type': 'anyone', 'role': 'reader'}
+            body=permission,
+            transferOwnership=True,
+            supportsAllDrives=True
         ).execute()
-
+        
         return file_id
-
     except Exception as e:
-        return f"Err_{str(e)}"
+        return f"Err_{str(e)[:15]}"
 
 # --- PDF ---
 def generar_pdf(reg):
@@ -74,8 +75,8 @@ def generar_pdf(reg):
     pdf.ln(20); pdf.set_text_color(0, 0, 0); pdf.set_font('Arial', 'B', 12)
     pdf.cell(0, 10, "REPORTE TECNICO", 1, 1, 'C')
     pdf.set_font('Arial', '', 10)
-    pdf.cell(50, 8, f"PLACA: {reg['placa']}", 1); pdf.cell(50, 8, f"FECHA: {reg['fecha']}", 1, 1)
-    pdf.multi_cell(0, 8, f"TRABAJOS: {reg['tareas']}", 1)
+    pdf.cell(50, 8, f"PLACA: {reg.get('placa', 'N/A')}", 1); pdf.cell(50, 8, f"FECHA: {reg.get('fecha', 'N/A')}", 1, 1)
+    pdf.multi_cell(0, 8, f"TRABAJOS: {reg.get('tareas', 'N/A')}", 1)
     return pdf.output(dest='S').encode('latin-1')
 
 # --- LOGICA DE NAVEGACION ---
@@ -93,106 +94,44 @@ PAQUETES = {
 
 if st.session_state.view == 'inicio':
     st.image(DATOS_TALLER["logo_url"], width=200)
-    if st.button("👤 CLIENTE", use_container_width=True):
-        st.session_state.view = 'cliente'
-        st.rerun()
-    if st.button("🛠️ ADMIN", use_container_width=True):
-        st.session_state.view = 'login'
-        st.rerun()
+    if st.button("👤 CLIENTE", use_container_width=True): st.session_state.view = 'cliente'; st.rerun()
+    if st.button("🛠️ ADMIN", use_container_width=True): st.session_state.view = 'login'; st.rerun()
 
 elif st.session_state.view == 'login':
-    u = st.text_input("Usuario")
-    p = st.text_input("Clave", type="password")
+    u = st.text_input("Usuario"); p = st.text_input("Clave", type="password")
     if st.button("Ingresar"):
-        if u == "percy" and p == "autogas2026":
-            st.session_state.view = 'admin'
-            st.rerun()
+        if u == "percy" and p == "autogas2026": st.session_state.view = 'admin'; st.rerun()
 
 elif st.session_state.view == 'admin':
     if st.session_state.step == 1:
         placa = st.text_input("PLACA").upper().strip()
-        ma = st.text_input("Marca")
-        mo = st.text_input("Modelo")
-        km = st.number_input("KM", min_value=0)
+        ma, mo, km = st.text_input("Marca"), st.text_input("Modelo"), st.number_input("KM", min_value=0)
         paq = st.selectbox("Paquete", list(PAQUETES.keys()))
-
         if st.button("SIGUIENTE"):
-            st.session_state.datos = {
-                "placa": placa,
-                "ma": ma,
-                "mo": mo,
-                "km": km,
-                "paq": paq
-            }
-            st.session_state.step = 2
-            st.rerun()
-
+            st.session_state.datos = {"placa": placa, "ma": ma, "mo": mo, "km": km, "paq": paq}
+            st.session_state.step = 2; st.rerun()
     else:
         d = st.session_state.datos
         tareas = [t for t in PAQUETES[d['paq']] if st.checkbox(t, value=True)]
         obs = st.text_area("Notas")
         fotos = st.file_uploader("Fotos", accept_multiple_files=True)
-
         if st.button("✅ GUARDAR"):
             with st.spinner("Guardando..."):
-
-                ids = [
-                    subir_foto(f.getvalue(), f"{d['placa']}_{i}.jpg", f.type)
-                    for i, f in enumerate(fotos)
-                ] if fotos else []
-
-                # 👉 Mostrar errores o IDs
-                st.write(ids)
-
-                db_sheet.append_row([
-                    datetime.now().strftime("%d/%m/%Y"),
-                    d['placa'],
-                    d['ma'],
-                    d['mo'],
-                    "2024",
-                    d['km'],
-                    d['paq'],
-                    ", ".join(tareas),
-                    obs,
-                    ",".join(ids)
-                ])
-
-                st.success("¡Guardado!")
-                st.session_state.view = 'inicio'
-                st.session_state.step = 1
-                st.rerun()
+                ids = [subir_foto(f.getvalue(), f"{d['placa']}_{datetime.now().strftime('%H%M%S')}.jpg") for f in fotos] if fotos else []
+                db_sheet.append_row([datetime.now().strftime("%d/%m/%Y"), d['placa'], d['ma'], d['mo'], "2024", d['km'], d['paq'], ", ".join(tareas), obs, ",".join(ids)])
+                st.success("¡Guardado!"); st.session_state.view = 'inicio'; st.session_state.step = 1; st.rerun()
 
 elif st.session_state.view == 'cliente':
     p_c = st.text_input("PLACA").upper().strip()
-
     if st.button("CONSULTAR"):
         df = pd.DataFrame(db_sheet.get_all_records())
         df.columns = [c.lower().strip() for c in df.columns]
         hist = df[df['placa'].astype(str).str.upper() == p_c].to_dict('records')
-
         if hist:
             prox = int(hist[-1]['km']) + 5000
-
-            st.markdown(
-                f"<div style='background-color:#d4edda; padding:30px; border-radius:15px; text-align:center; border:2px solid #155724;'>"
-                f"<h2 style='color:#155724;'>¡Estimado Cliente!</h2>"
-                f"<p>Mantenimiento a los:</p>"
-                f"<h1 style='color:#155724; font-size:4em;'>{prox} KM</h1>"
-                f"</div>",
-                unsafe_allow_html=True
-            )
-
+            st.markdown(f"<div style='background-color:#d4edda; padding:30px; border-radius:15px; text-align:center; border:2px solid #155724;'><h2 style='color:#155724;'>¡Estimado Cliente!</h2><p>Mantenimiento a los:</p><h1 style='color:#155724; font-size:4em;'>{prox} KM</h1></div>", unsafe_allow_html=True)
             for r in reversed(hist):
                 with st.expander(f"Servicio {r['fecha']}"):
-                    st.download_button(
-                        "Descargar PDF",
-                        generar_pdf(r),
-                        f"Rep_{r['placa']}.pdf",
-                        key=r['km']
-                    )
-        else:
-            st.warning("Sin registros.")
-
-    if st.button("Volver"):
-        st.session_state.view = 'inicio'
-        st.rerun()
+                    st.download_button("Descargar PDF", generar_pdf(r), f"Rep_{r['placa']}.pdf", key=f"btn_{r['fecha']}_{r['km']}")
+        else: st.warning("Sin registros.")
+    if st.button("Volver"): st.session_state.view = 'inicio'; st.rerun()
