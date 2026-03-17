@@ -42,8 +42,16 @@ db_sheet, drive_service = conectar_google()
 
 def subir_foto_drive(file_bytes, nombre):
     try:
+        # Buscamos la carpeta Fotos_Autogas para guardar ahí
+        query = "name = 'Fotos_Autogas' and mimeType = 'application/vnd.google-apps.folder'"
+        results = drive_service.files().list(q=query, fields="files(id)").execute()
+        folder_id = results.get('files', [])[0].get('id') if results.get('files') else None
+        
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg', resumable=True)
-        file = drive_service.files().create(body={'name': nombre}, media_body=media, fields='id').execute()
+        file_metadata = {'name': nombre}
+        if folder_id: file_metadata['parents'] = [folder_id]
+        
+        file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
         return file.get('id')
     except: return None
 
@@ -105,17 +113,11 @@ elif st.session_state.view == 'admin_panel':
     if st.session_state.admin_step == 1:
         placa = st.text_input("PLACA").upper()
         if placa:
-            # Intentamos leer datos, pero si falla por falta de columnas, seguimos adelante
-            v = None
-            try:
-                all_records = db_sheet.get_all_records()
-                v = next((r for r in all_records if str(r.get('placa', '')).upper() == placa), None)
-            except:
-                pass # Si el Excel está vacío o mal nombrado, v sigue siendo None
-            
-            ma = st.text_input("Marca", v.get('marca', '') if v else "")
-            mo = st.text_input("Modelo", v.get('modelo', '') if v else "")
-            an = st.text_input("Año", v.get('anio', '') if v else "")
+            all_recs = db_sheet.get_all_records()
+            v = next((r for r in all_recs if str(r.get('placa')).upper() == placa), None)
+            ma = st.text_input("Marca", v.get('marca') if v else "")
+            mo = st.text_input("Modelo", v.get('modelo') if v else "")
+            an = st.text_input("Año", v.get('anio') if v else "")
             km = st.number_input("KM Actual", min_value=0)
             pa = st.selectbox("Paquete", ["A","B","C","D","E","F"])
             if st.button("SIGUIENTE ➡️"):
@@ -128,7 +130,7 @@ elif st.session_state.view == 'admin_panel':
         notas = st.text_area("Observaciones")
         fotos = st.file_uploader("Adjuntar fotos", accept_multiple_files=True, type=['jpg','png','jpeg'])
         if st.button("✅ GUARDAR"):
-            with st.spinner("Guardando en la nube..."):
+            with st.spinner("Guardando..."):
                 ids = []
                 if fotos:
                     for f in fotos:
@@ -139,7 +141,7 @@ elif st.session_state.view == 'admin_panel':
                         f_id = subir_foto_drive(out.getvalue(), f"{d['placa']}_{datetime.now().strftime('%H%M%S')}.jpg")
                         if f_id: ids.append(f_id)
                 db_sheet.append_row([datetime.now().strftime("%d/%m/%Y"), d['placa'], d['marca'], d['modelo'], d['anio'], d['km'], d['paquete'], ", ".join(tareas_ok), notas, ",".join(ids)])
-                st.success("¡Guardado!"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
+                st.success("Guardado"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
 
 elif st.session_state.view == 'cliente_placa':
     if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
@@ -149,21 +151,22 @@ elif st.session_state.view == 'cliente_placa':
 
 elif st.session_state.view == 'cliente_menu':
     st.title(f"🚗 Placa: {st.session_state.placa_cliente}")
-    if st.button("⬅️ REGRESAR"): st.session_state.view = 'cliente_placa'; st.rerun()
+    if st.button("⬅️ REGRESAR AL BUSCADOR"): st.session_state.view = 'cliente_placa'; st.rerun()
     
-    # Manejo seguro de historial
-    try:
-        all_recs = db_sheet.get_all_records()
-        hist = [r for r in all_recs if str(r.get('placa', '')).upper() == st.session_state.placa_cliente]
-    except:
-        hist = []
+    # BUSQUEDA REAL EN EXCEL
+    all_recs = db_sheet.get_all_records()
+    hist = [r for r in all_recs if str(r.get('placa')).upper() == st.session_state.placa_cliente]
     
     if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
         if hist:
             prox = int(hist[-1].get('km', 0)) + 5000
             st.markdown(f"<div style='background-color:#d4edda; padding:20px; border-radius:10px; text-align:center;'><h2>¡Estimado Cliente!</h2><p style='font-size:1.2em;'>Su próximo mantenimiento preventivo en <b>AUTOGAS ENERGY</b> le toca a los:</p><h1 style='color:#155724;'>{prox} KM</h1></div>", unsafe_allow_html=True)
+        else: st.warning("No hay historial.")
+
     if st.button("📋 MANTENIMIENTO ACTUAL (HISTORIAL)", use_container_width=True):
         if not hist: st.warning("Sin registros.")
         for r in reversed(hist):
-            with st.expander(f"📄 Servicio: {r.get('fecha', '')} - {r.get('km', '')} KM"):
-                st.download_button(f"📥 Descargar PDF", data=generar_pdf_pro(r), file_name=f"Informe_{r.get('placa', '')}.pdf", key=f"btn_{r.get('fecha','')}_{r.get('km','')}")
+            with st.expander(f"📄 Servicio: {r.get('fecha')} - {r.get('km')} KM"):
+                st.download_button(f"📥 Descargar PDF", data=generar_pdf_pro(r), file_name=f"Informe_{r.get('placa')}.pdf", key=f"btn_{r.get('fecha')}_{r.get('km')}")
+    
+    if st.button("🔍 HISTORIAL DE DIAGNÓSTICO", use_container_width=True): st.info("Próximamente.")
