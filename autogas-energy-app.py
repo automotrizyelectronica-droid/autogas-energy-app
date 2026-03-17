@@ -20,6 +20,9 @@ DATOS_TALLER = {
     "logo_url": "https://i.postimg.cc/mD3mzc9v/logo-autogas.png"
 }
 
+# ID DE TU CARPETA (Fijado para evitar errores de Secrets)
+ID_CARPETA_DRIVE = "1Vk6naUEdgadg0GDcCrz0nY6MCXrI-1S"
+
 st.set_page_config(page_title=DATOS_TALLER["nombre"], layout="centered")
 components.html("<script>window.onbeforeunload = function() { return '¿Salir?'; };</script>", height=0)
 
@@ -40,9 +43,8 @@ db_sheet, drive_service = conectar_google()
 
 def subir_foto_drive(file_bytes, nombre):
     try:
-        f_id = st.secrets["GOOGLE_DRIVE_FOLDER_ID"]
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg', resumable=True)
-        file_metadata = {'name': nombre, 'parents': [f_id]}
+        file_metadata = {'name': nombre, 'parents': [ID_CARPETA_DRIVE]}
         file = drive_service.files().create(
             body=file_metadata, 
             media_body=media, 
@@ -51,7 +53,7 @@ def subir_foto_drive(file_bytes, nombre):
         ).execute()
         return file.get('id')
     except Exception as e:
-        return f"error_{str(e)[:15]}"
+        return f"error_subida"
 
 # --- PDF ---
 class ReporteProfesional(FPDF):
@@ -75,7 +77,8 @@ def generar_pdf_pro(reg):
     pdf.cell(45, 8, "KM:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg.get('km', '')} KM", 1, 1)
     pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, "DETALLE DE TRABAJOS", 0, 1)
     pdf.set_font('Arial', '', 10)
-    for t in str(reg.get('tareas', '')).split(", "):
+    tareas = str(reg.get('tareas', '')).split(", ")
+    for t in tareas:
         pdf.cell(10, 6, "-", 0); pdf.cell(0, 6, t, 0, 1)
     return pdf.output(dest='S').encode('latin-1')
 
@@ -83,7 +86,7 @@ PAQUETES = {
     "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion fugas gas", "Scanneo motor", "siliconeo motor"],
     "B": ["Paquete A + Bujias"],
     "C": ["Paquete A + Filtro gas"],
-    "D": ["Mantenimiento Completo", "Limpieza inyectores", "Obturador", "Sensores", "Filtros"],
+    "D": ["Mantenimiento Completo", "Inyectores Gasolina", "Obturador", "Sensores", "Filtros"],
     "E": ["Full Gas", "Inyectores Gas/Gasolina", "Regulacion", "Sensores"],
     "F": ["Reductor Gas", "Calibracion", "Bujias"]
 }
@@ -117,7 +120,7 @@ elif st.session_state.view == 'admin_panel':
         notas = st.text_area("Observaciones")
         fotos = st.file_uploader("Subir Fotos", accept_multiple_files=True)
         if st.button("✅ GUARDAR"):
-            with st.spinner("Guardando en la nube..."):
+            with st.spinner("Guardando en Drive y Excel..."):
                 ids = []
                 if fotos:
                     for f in fotos:
@@ -127,10 +130,10 @@ elif st.session_state.view == 'admin_panel':
                         f_id = subir_foto_drive(out.getvalue(), f"{d['placa']}_{datetime.now().strftime('%H%M%S')}.jpg")
                         ids.append(f_id)
                 db_sheet.append_row([datetime.now().strftime("%d/%m/%Y"), d['placa'], d['marca'], d['modelo'], d['anio'], d['km'], d['paquete'], ", ".join(tareas_ok), notas, ",".join(ids)])
-                st.success("¡Guardado!"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
+                st.success("¡Registro guardado con éxito!"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
 
 elif st.session_state.view == 'cliente_placa':
-    p_c = st.text_input("INGRESE SU PLACA").upper()
+    p_c = st.text_input("INGRESE SU PLACA").upper().strip()
     if st.button("CONSULTAR"):
         st.session_state.placa_cliente = p_c; st.session_state.view = 'cliente_menu'; st.rerun()
 
@@ -139,17 +142,17 @@ elif st.session_state.view == 'cliente_menu':
     df_raw = pd.DataFrame(db_sheet.get_all_records())
     if not df_raw.empty:
         df_raw.columns = [c.lower().strip() for c in df_raw.columns]
-        hist = df_raw[df_raw['placa'].astype(str).str.upper().str.strip() == st.session_state.placa_cliente.strip()].to_dict('records')
+        hist = df_raw[df_raw['placa'].astype(str).str.upper().str.strip() == st.session_state.placa_cliente].to_dict('records')
     else: hist = []
     
     if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
         if hist:
             prox = int(hist[-1].get('km', 0)) + 5000
             st.markdown(f"<div style='background-color:#d4edda; padding:30px; border-radius:15px; text-align:center; border: 2px solid #155724;'><h2>¡Estimado Cliente!</h2><p style='font-size:1.3em;'>Su próximo mantenimiento preventivo en <b>AUTOGAS ENERGY</b> le toca a los:</p><h1 style='color:#155724; font-size:3.5em;'>{prox} KM</h1></div>", unsafe_allow_html=True)
-        else: st.warning("Sin historial.")
+        else: st.warning("No hay historial registrado.")
 
     if st.button("📋 MANTENIMIENTO ACTUAL (HISTORIAL)", use_container_width=True):
-        if not hist: st.warning("No hay registros.")
+        if not hist: st.warning("No hay servicios previos.")
         for r in reversed(hist):
             with st.expander(f"Servicio {r.get('fecha')} - {r.get('km')} KM"):
                 st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name=f"Informe_{r.get('placa')}.pdf", key=f"btn_{r.get('km')}")
