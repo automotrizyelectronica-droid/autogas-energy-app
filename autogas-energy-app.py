@@ -4,11 +4,12 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
-# --- CONFIGURACIÓN MÍNIMA ---
-# ID de tu carpeta "Fotos_Autogas"
+# --- DATOS DE PRUEBA ---
 ID_CARPETA = "1Vk6naUsEDgadg0GDcCrz0nY6MCXrI-1S"
+# TU CORREO (Dueño de los 2TB)
+TU_CORREO = "automotrizyelectronica@gmail.com" 
 
-st.title("🧪 Prueba de Subida Directa")
+st.title("🧪 Prueba Técnica: Salto de Cuota 403")
 
 def conectar_drive():
     try:
@@ -18,25 +19,21 @@ def conectar_drive():
         )
         return build('drive', 'v3', credentials=creds)
     except Exception as e:
-        st.error(f"Error de credenciales: {e}")
+        st.error(f"Error credenciales: {e}")
         return None
 
 drive_service = conectar_drive()
 
-# --- INTERFAZ DE PRUEBA ---
-archivo = st.file_uploader("Selecciona una foto pequeña para probar", type=['jpg', 'png', 'jpeg'])
+archivo = st.file_uploader("Sube una foto para romper el error 403", type=['jpg', 'png', 'jpeg'])
 
-if st.button("SUBIR AHORA"):
-    if archivo is not None and drive_service is not None:
+if st.button("EJECUTAR PRUEBA DE SUBIDA"):
+    if archivo and drive_service:
         try:
-            with st.spinner("Subiendo..."):
+            with st.spinner("Subiendo y transfiriendo propiedad..."):
+                # 1. Subida
                 media = MediaIoBaseUpload(io.BytesIO(archivo.getvalue()), mimetype='image/jpeg')
-                metadata = {
-                    'name': 'PRUEBA_RAPIDA.jpg',
-                    'parents': [ID_CARPETA]
-                }
+                metadata = {'name': 'PRUEBA_FINAL.jpg', 'parents': [ID_CARPETA]}
                 
-                # Intentamos la subida más básica posible
                 f = drive_service.files().create(
                     body=metadata,
                     media_body=media,
@@ -44,11 +41,27 @@ if st.button("SUBIR AHORA"):
                     supportsAllDrives=True
                 ).execute()
                 
-                st.success(f"✅ ¡FUNCIONÓ! ID del archivo: {f.get('id')}")
+                f_id = f.get('id')
+
+                # 2. TRASPASO DE PROPIEDAD (La clave para los 2TB)
+                permiso = {
+                    'type': 'user',
+                    'role': 'owner',
+                    'emailAddress': TU_CORREO
+                }
+                
+                drive_service.permissions().create(
+                    fileId=f_id,
+                    body=permiso,
+                    transferOwnership=True, # Obliga a Google a usar tus 2TB
+                    supportsAllDrives=True
+                ).execute()
+                
+                st.success(f"✅ ¡LOGRADO! Foto subida usando tus 2TB. ID: {f_id}")
                 st.balloons()
                 
         except Exception as e:
-            st.error("❌ FALLÓ LA SUBIDA")
-            st.code(str(e)) # Aquí veremos el error completo sin recortes
+            st.error("❌ ERROR CRÍTICO")
+            st.code(str(e))
     else:
-        st.warning("Primero selecciona un archivo.")
+        st.warning("Selecciona un archivo primero.")
