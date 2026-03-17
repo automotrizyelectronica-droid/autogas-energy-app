@@ -44,7 +44,7 @@ def subir_foto_drive(file_bytes, nombre):
         file = drive_service.files().create(body={'name': nombre}, media_body=media, fields='id').execute()
         return file.get('id')
     except Exception as e:
-        st.error(f"Error subiendo foto: {e}. Asegúrate de habilitar 'Google Drive API' en la consola.")
+        st.error(f"Error en Drive: {e}")
         return None
 
 # --- PDF PROFESIONAL ---
@@ -67,7 +67,7 @@ def generar_pdf_pro(reg):
     pdf.cell(45, 8, "FECHA:", 1, 0, 'L', True); pdf.cell(50, 8, str(reg['fecha']), 1, 1)
     pdf.cell(45, 8, "VEHICULO:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg['marca']} {reg['modelo']}", 1)
     pdf.cell(45, 8, "KM:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg['km']} KM", 1, 1)
-    pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, f"DETALLE DE TRABAJOS (PAQUETE {reg['paquete']})", 0, 1)
+    pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, f"TRABAJOS (PAQUETE {reg['paquete']})", 0, 1)
     pdf.set_font('Arial', '', 10)
     for t in str(reg['tareas']).split(", "):
         pdf.cell(10, 6, "-", 0); pdf.cell(0, 6, t, 0, 1)
@@ -106,57 +106,13 @@ elif st.session_state.view == 'admin_panel':
     if st.session_state.admin_step == 1:
         placa = st.text_input("PLACA").upper()
         if placa:
-            all_v = db_sheet.get_all_records()
-            v = next((r for r in all_v if str(r['placa']).upper() == placa), None)
-            ma, mo, an = st.text_input("Marca", v['marca'] if v else ""), st.text_input("Modelo", v['modelo'] if v else ""), st.text_input("Año", v['anio'] if v else "")
-            km = st.number_input("KM Actual", min_value=0); pa = st.selectbox("Paquete", ["A","B","C","D","E","F"])
+            all_records = db_sheet.get_all_records()
+            v = next((r for r in all_records if str(r['placa']).upper() == placa), None)
+            ma = st.text_input("Marca", v['marca'] if v else "")
+            mo = st.text_input("Modelo", v['modelo'] if v else "")
+            an = st.text_input("Año", v['anio'] if v else "")
+            km = st.number_input("KM Actual", min_value=0)
+            pa = st.selectbox("Paquete", ["A","B","C","D","E","F"])
             if st.button("SIGUIENTE ➡️"):
                 st.session_state.temp = {"placa": placa, "marca": ma, "modelo": mo, "anio": an, "km": km, "paquete": pa}
-                st.session_state.admin_step = 2; st.rerun()
-    elif st.session_state.admin_step == 2:
-        d = st.session_state.temp; st.subheader(f"Hoja de Trabajo: {d['placa']}")
-        tareas_ok = [t for t in PAQUETES[d['paquete']] if st.checkbox(t, value=True)]
-        notas = st.text_area("Observaciones")
-        fotos = st.file_uploader("Adjuntar fotos", accept_multiple_files=True, type=['jpg','png','jpeg'])
-        if st.button("✅ GUARDAR"):
-            with st.spinner("Guardando en la nube..."):
-                ids = []
-                if fotos:
-                    for f in fotos:
-                        # Procesar imagen antes de subir
-                        img = Image.open(f).convert("RGB")
-                        img.thumbnail((800, 800))
-                        out = io.BytesIO()
-                        img.save(out, format='JPEG', quality=70)
-                        f_id = subir_foto_drive(out.getvalue(), f"{d['placa']}_{f.name}")
-                        if f_id: ids.append(f_id)
-                
-                db_sheet.append_row([
-                    datetime.now().strftime("%d/%m/%Y"), 
-                    d['placa'], d['marca'], d['modelo'], d['anio'], 
-                    d['km'], d['paquete'], ", ".join(tareas_ok), 
-                    notas, ",".join(ids)
-                ])
-                st.success("¡Mantenimiento guardado correctamente!")
-                st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
-
-elif st.session_state.view == 'cliente_placa':
-    if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
-    p_c = st.text_input("INGRESE SU PLACA").upper()
-    if st.button("CONSULTAR"):
-        if p_c: st.session_state.placa_cliente = p_c; st.session_state.view = 'cliente_menu'; st.rerun()
-
-elif st.session_state.view == 'cliente_menu':
-    st.title(f"🚗 Placa: {st.session_state.placa_cliente}")
-    if st.button("⬅️ REGRESAR AL BUSCADOR"): st.session_state.view = 'cliente_placa'; st.rerun()
-    hist = [r for r in db_sheet.get_all_records() if str(r['placa']).upper() == st.session_state.placa_cliente]
-    if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
-        if hist:
-            prox = int(hist[-1]['km']) + 5000
-            st.markdown(f"<div style='background-color:#d4edda; padding:20px; border-radius:10px; text-align:center;'><h2>¡Estimado Cliente!</h2><p style='font-size:1.2em;'>Su próximo mantenimiento preventivo en <b>AUTOGAS ENERGY</b> le toca a los:</p><h1 style='color:#155724;'>{prox} KM</h1></div>", unsafe_allow_html=True)
-    if st.button("📋 MANTENIMIENTO ACTUAL (HISTORIAL)", use_container_width=True):
-        if not hist: st.warning("Sin registros.")
-        for r in reversed(hist):
-            with st.expander(f"📄 Servicio: {r['fecha']} - {r['km']} KM"):
-                st.download_button(f"📥 Descargar PDF", data=generar_pdf_pro(r), file_name=f"Informe_{r['placa']}.pdf", key=f"btn_{r['fecha']}_{r['km']}")
-    if st.button("🔍 HISTORIAL DE DIAGNÓSTICO", use_container_width=True): st.info("Próximamente informes de fallas.")
+                st.session_state
