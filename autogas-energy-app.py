@@ -39,9 +39,13 @@ def conectar_google():
 db_sheet, drive_service = conectar_google()
 
 def subir_foto_drive(file_bytes, nombre):
-    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg')
-    file = drive_service.files().create(body={'name': nombre}, media_body=media, fields='id').execute()
-    return file.get('id')
+    try:
+        media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg', resumable=True)
+        file = drive_service.files().create(body={'name': nombre}, media_body=media, fields='id').execute()
+        return file.get('id')
+    except Exception as e:
+        st.error(f"Error subiendo foto: {e}. Asegúrate de habilitar 'Google Drive API' en la consola.")
+        return None
 
 # --- PDF PROFESIONAL ---
 class ReporteProfesional(FPDF):
@@ -65,11 +69,11 @@ def generar_pdf_pro(reg):
     pdf.cell(45, 8, "KM:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg['km']} KM", 1, 1)
     pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, f"DETALLE DE TRABAJOS (PAQUETE {reg['paquete']})", 0, 1)
     pdf.set_font('Arial', '', 10)
-    for t in reg['tareas'].split(", "):
+    for t in str(reg['tareas']).split(", "):
         pdf.cell(10, 6, "-", 0); pdf.cell(0, 6, t, 0, 1)
     if reg['notas']:
         pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, "OBSERVACIONES", 0, 1)
-        pdf.set_font('Arial', 'I', 10); pdf.multi_cell(0, 6, reg['notas'], 1)
+        pdf.set_font('Arial', 'I', 10); pdf.multi_cell(0, 6, str(reg['notas']), 1)
     return pdf.output(dest='S').encode('latin-1')
 
 # --- PAQUETES ---
@@ -115,9 +119,25 @@ elif st.session_state.view == 'admin_panel':
         notas = st.text_area("Observaciones")
         fotos = st.file_uploader("Adjuntar fotos", accept_multiple_files=True, type=['jpg','png','jpeg'])
         if st.button("✅ GUARDAR"):
-            with st.spinner("Guardando..."):
-                ids = [subir_foto_drive(f.getvalue(), f"{d['placa']}_{f.name}") for f in fotos] if fotos else []
-                db_sheet.append_row([datetime.now().strftime("%d/%m/%Y"), d['placa'], d['marca'], d['modelo'], d['anio'], d['km'], d['paquete'], ", ".join(tareas_ok), notas, ",".join(ids)])
+            with st.spinner("Guardando en la nube..."):
+                ids = []
+                if fotos:
+                    for f in fotos:
+                        # Procesar imagen antes de subir
+                        img = Image.open(f).convert("RGB")
+                        img.thumbnail((800, 800))
+                        out = io.BytesIO()
+                        img.save(out, format='JPEG', quality=70)
+                        f_id = subir_foto_drive(out.getvalue(), f"{d['placa']}_{f.name}")
+                        if f_id: ids.append(f_id)
+                
+                db_sheet.append_row([
+                    datetime.now().strftime("%d/%m/%Y"), 
+                    d['placa'], d['marca'], d['modelo'], d['anio'], 
+                    d['km'], d['paquete'], ", ".join(tareas_ok), 
+                    notas, ",".join(ids)
+                ])
+                st.success("¡Mantenimiento guardado correctamente!")
                 st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
 
 elif st.session_state.view == 'cliente_placa':
