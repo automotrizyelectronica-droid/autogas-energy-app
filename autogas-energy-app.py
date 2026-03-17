@@ -24,7 +24,6 @@ st.set_page_config(page_title=DATOS_TALLER["nombre"], layout="centered")
 components.html("<script>window.onbeforeunload = function() { return '¿Salir?'; };</script>", height=0)
 
 # --- CONEXIÓN GOOGLE ---
-@st.cache_resource
 def conectar_google():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -41,7 +40,6 @@ db_sheet, drive_service = conectar_google()
 
 def subir_foto_drive(file_bytes, nombre):
     try:
-        # BUSQUEDA DIRECTA DEL ID EN SECRETS
         f_id = st.secrets["GOOGLE_DRIVE_FOLDER_ID"]
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg', resumable=True)
         file_metadata = {'name': nombre, 'parents': [f_id]}
@@ -75,19 +73,19 @@ def generar_pdf_pro(reg):
     pdf.cell(45, 8, "FECHA:", 1, 0, 'L', True); pdf.cell(50, 8, str(reg.get('fecha', '')), 1, 1)
     pdf.cell(45, 8, "VEHICULO:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg.get('marca', '')} {reg.get('modelo', '')}", 1)
     pdf.cell(45, 8, "KM:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg.get('km', '')} KM", 1, 1)
-    pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, f"DETALLE DE TRABAJOS (PAQUETE {reg.get('paquete', '')})", 0, 1)
+    pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, "DETALLE DE TRABAJOS", 0, 1)
     pdf.set_font('Arial', '', 10)
     for t in str(reg.get('tareas', '')).split(", "):
         pdf.cell(10, 6, "-", 0); pdf.cell(0, 6, t, 0, 1)
     return pdf.output(dest='S').encode('latin-1')
 
 PAQUETES = {
-    "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion fugas gas", "Inspeccion fugas aceite/refrig.", "Scanneo motor", "siliconeo motor"],
-    "B": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Bujias", "Inspeccion fugas", "Scanneo motor", "siliconeo motor"],
-    "C": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Filtro de gas", "Inspeccion fugas", "Scanneo motor", "siliconeo motor"],
-    "D": ["Mantenimiento Completo", "Inyectores Gasolina", "Filtro Gasolina", "Obturador", "Sensores", "Bujias", "Filtros", "Scanneo motor"],
-    "E": ["Full Gas", "Inyectores Gas", "Inyectores Gasolina", "Obturador", "Sensores", "Regulacion/Calibracion", "Filtros", "Scanneo motor"],
-    "F": ["Reductor Gas", "Regulacion/Calibracion", "Bujias", "Inspeccion fugas", "Scanneo motor", "siliconeo motor"]
+    "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion fugas gas", "Scanneo motor", "siliconeo motor"],
+    "B": ["Paquete A + Bujias"],
+    "C": ["Paquete A + Filtro gas"],
+    "D": ["Mantenimiento Completo", "Limpieza inyectores", "Obturador", "Sensores", "Filtros"],
+    "E": ["Full Gas", "Inyectores Gas/Gasolina", "Regulacion", "Sensores"],
+    "F": ["Reductor Gas", "Calibracion", "Bujias"]
 }
 
 # --- NAVEGACIÓN ---
@@ -101,7 +99,6 @@ if st.session_state.view == 'inicio':
     if col2.button("🛠️ ADMIN", use_container_width=True): st.session_state.view = 'login'; st.rerun()
 
 elif st.session_state.view == 'login':
-    if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
     u = st.text_input("Usuario"); p = st.text_input("Contraseña", type="password")
     if st.button("INGRESAR"):
         if u == "percy" and p == "autogas2026": st.session_state.view = 'admin_panel'; st.rerun()
@@ -120,7 +117,7 @@ elif st.session_state.view == 'admin_panel':
         notas = st.text_area("Observaciones")
         fotos = st.file_uploader("Subir Fotos", accept_multiple_files=True)
         if st.button("✅ GUARDAR"):
-            with st.spinner("Guardando..."):
+            with st.spinner("Guardando en la nube..."):
                 ids = []
                 if fotos:
                     for f in fotos:
@@ -133,29 +130,27 @@ elif st.session_state.view == 'admin_panel':
                 st.success("¡Guardado!"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
 
 elif st.session_state.view == 'cliente_placa':
-    if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
     p_c = st.text_input("INGRESE SU PLACA").upper()
     if st.button("CONSULTAR"):
         st.session_state.placa_cliente = p_c; st.session_state.view = 'cliente_menu'; st.rerun()
 
 elif st.session_state.view == 'cliente_menu':
     st.title(f"🚗 Placa: {st.session_state.placa_cliente}")
-    df = pd.DataFrame(db_sheet.get_all_records())
-    # BÚSQUEDA ROBUSTA
-    if not df.empty:
-        df.columns = [c.lower() for c in df.columns]
-        hist = df[df['placa'].astype(str).str.upper().str.strip() == st.session_state.placa_cliente.strip()].to_dict('records')
+    df_raw = pd.DataFrame(db_sheet.get_all_records())
+    if not df_raw.empty:
+        df_raw.columns = [c.lower().strip() for c in df_raw.columns]
+        hist = df_raw[df_raw['placa'].astype(str).str.upper().str.strip() == st.session_state.placa_cliente.strip()].to_dict('records')
     else: hist = []
     
     if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
         if hist:
             prox = int(hist[-1].get('km', 0)) + 5000
-            st.markdown(f"<div style='background-color:#d4edda; padding:20px; border-radius:10px; text-align:center;'><h2>¡Estimado Cliente!</h2><p style='font-size:1.2em;'>Su próximo mantenimiento preventivo en <b>AUTOGAS ENERGY</b> le toca a los:</p><h1 style='color:#155724;'>{prox} KM</h1></div>", unsafe_allow_html=True)
+            st.markdown(f"<div style='background-color:#d4edda; padding:30px; border-radius:15px; text-align:center; border: 2px solid #155724;'><h2>¡Estimado Cliente!</h2><p style='font-size:1.3em;'>Su próximo mantenimiento preventivo en <b>AUTOGAS ENERGY</b> le toca a los:</p><h1 style='color:#155724; font-size:3.5em;'>{prox} KM</h1></div>", unsafe_allow_html=True)
         else: st.warning("Sin historial.")
 
     if st.button("📋 MANTENIMIENTO ACTUAL (HISTORIAL)", use_container_width=True):
-        if not hist: st.warning("Sin registros.")
+        if not hist: st.warning("No hay registros.")
         for r in reversed(hist):
             with st.expander(f"Servicio {r.get('fecha')} - {r.get('km')} KM"):
-                st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name=f"Reporte_{r.get('placa')}.pdf", key=f"btn_{r.get('km')}")
+                st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name=f"Informe_{r.get('placa')}.pdf", key=f"btn_{r.get('km')}")
     if st.button("⬅️ VOLVER"): st.session_state.view = 'inicio'; st.rerun()
