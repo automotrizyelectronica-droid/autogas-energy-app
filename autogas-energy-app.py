@@ -42,19 +42,19 @@ def subir_foto_drive(file_bytes, nombre):
     try:
         folder_id = st.secrets["GOOGLE_DRIVE_FOLDER_ID"]
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg', resumable=True)
-        # Soportar almacenamiento del usuario
         file_metadata = {'name': nombre, 'parents': [folder_id]}
+        # IMPORTANTE: supportsAllDrives permite usar tu cuota de espacio
         file = drive_service.files().create(
             body=file_metadata, 
             media_body=media, 
             fields='id',
-            supportsAllDrives=True # Para evitar el error de quota del bot
+            supportsAllDrives=True 
         ).execute()
         return file.get('id')
     except Exception as e:
-        return f"error_{str(e)[:20]}"
+        return f"error_{str(e)[:15]}"
 
-# --- PDF PROFESIONAL ---
+# --- PDF ---
 class ReporteProfesional(FPDF):
     def header(self):
         self.set_fill_color(0, 51, 153); self.rect(0, 0, 210, 40, 'F')
@@ -80,14 +80,13 @@ def generar_pdf_pro(reg):
         pdf.cell(10, 6, "-", 0); pdf.cell(0, 6, t, 0, 1)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- PAQUETES ---
 PAQUETES = {
-    "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
-    "B": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Cambio o inspeccion de bujias", "Scanneo de motor", "siliconeo de motor"],
-    "C": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Cambio de filtro de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
-    "D": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Cambio de filtro de gas", "Cambio de filtro de gasolina (externo)", "Limpieza de inyectores gasolina", "Cambio de oring y filtro de inyector", "Limpieza de obturador", "Cambio o inpeccion de bujias", "Limpieza de sensores", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
-    "E": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Cambio de filtro de gas", "Limpieza de inyectores de gas", "Cambio de filtro de gasolina (externo)", "Limpieza de inyectores gasolina", "Cambio de oring y filtro de inyector", "Limpieza de obturador", "Cambio o inpeccion de bujias", "Limpieza de sensores", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "siliconeo de motor"],
-    "F": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Cambio o inpeccion de bujias", "Limpieza de reductor de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "siliconeo de motor"]
+    "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion fugas", "Scanneo"],
+    "B": ["Paquete A + Bujias"],
+    "C": ["Paquete A + Filtro gas"],
+    "D": ["Mantenimiento Completo", "Limpieza inyectores", "Obturador", "Sensores"],
+    "E": ["Full Gas", "Inyectores Gas/Gasolina", "Regulacion", "Sensores"],
+    "F": ["Reductor Gas", "Calibracion", "Bujias"]
 }
 
 # --- NAVEGACIÓN ---
@@ -139,7 +138,8 @@ elif st.session_state.view == 'cliente_placa':
 elif st.session_state.view == 'cliente_menu':
     st.title(f"🚗 Placa: {st.session_state.placa_cliente}")
     df = pd.DataFrame(db_sheet.get_all_records())
-    hist = df[df['placa'].astype(str).upper() == st.session_state.placa_cliente].to_dict('records') if not df.empty else []
+    # CORRECCIÓN AQUÍ: Agregado .str para evitar el AttributeError
+    hist = df[df['placa'].astype(str).str.upper() == st.session_state.placa_cliente].to_dict('records') if not df.empty else []
     
     if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
         if hist:
@@ -150,5 +150,5 @@ elif st.session_state.view == 'cliente_menu':
     if st.button("📋 MANTENIMIENTO ACTUAL (HISTORIAL)", use_container_width=True):
         for r in reversed(hist):
             with st.expander(f"Servicio {r['fecha']}"):
-                st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name=f"Reporte_{r['placa']}.pdf", key=f"btn_{r['km']}")
+                st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name=f"Reporte.pdf", key=f"btn_{r['km']}")
     if st.button("⬅️ VOLVER"): st.session_state.view = 'inicio'; st.rerun()
