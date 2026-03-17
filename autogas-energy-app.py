@@ -3,6 +3,8 @@ import pandas as pd
 from datetime import datetime
 from fpdf import FPDF
 import io
+import tempfile
+import os
 from PIL import Image
 import gspread
 from google.oauth2.service_account import Credentials
@@ -38,17 +40,19 @@ db_sheet, drive_service = conectar_google()
 
 def subir_foto_drive(file_bytes, nombre):
     try:
-        # LEER EL ID DESDE SECRETS
-        folder_id = st.secrets.get("GOOGLE_DRIVE_FOLDER_ID")
+        folder_id = st.secrets["GOOGLE_DRIVE_FOLDER_ID"]
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg', resumable=True)
-        file_metadata = {'name': nombre}
-        if folder_id:
-            file_metadata['parents'] = [folder_id]
-        
-        file = drive_service.files().create(body=file_metadata, media_body=media, fields='id').execute()
+        # Soportar almacenamiento del usuario
+        file_metadata = {'name': nombre, 'parents': [folder_id]}
+        file = drive_service.files().create(
+            body=file_metadata, 
+            media_body=media, 
+            fields='id',
+            supportsAllDrives=True # Para evitar el error de quota del bot
+        ).execute()
         return file.get('id')
     except Exception as e:
-        return f"error_{str(e)}"
+        return f"error_{str(e)[:20]}"
 
 # --- PDF PROFESIONAL ---
 class ReporteProfesional(FPDF):
@@ -74,34 +78,16 @@ def generar_pdf_pro(reg):
     pdf.set_font('Arial', '', 10)
     for t in str(reg.get('tareas', '')).split(", "):
         pdf.cell(10, 6, "-", 0); pdf.cell(0, 6, t, 0, 1)
-    
-    # AGREGAR FOTOS AL PDF SI EXISTEN
-    links = str(reg.get('links_fotos', '')).split(',')
-    if links and links[0] != '' and 'error' not in links[0]:
-        pdf.add_page()
-        pdf.set_font('Arial', 'B', 12); pdf.cell(0, 10, "EVIDENCIA FOTOGRAFICA", 0, 1, 'C')
-        for f_id in links:
-            try:
-                request = drive_service.files().get_media(fileId=f_id)
-                img_data = request.execute()
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".jpg") as tmp:
-                    tmp.write(img_data)
-                    tmp_path = tmp.name
-                pdf.image(tmp_path, x=25, w=160)
-                os.remove(tmp_path)
-                pdf.ln(5)
-            except: pass
-            
     return pdf.output(dest='S').encode('latin-1')
 
 # --- PAQUETES ---
 PAQUETES = {
-    "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion de fugas", "Scanneo motor"],
-    "B": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Bujias", "Scanneo motor"],
-    "C": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Filtro de gas", "Scanneo motor"],
-    "D": ["Mantenimiento Completo", "Inyectores Gasolina", "Obturador", "Sensores", "Filtros"],
-    "E": ["Mantenimiento Full Gas", "Inyectores Gas", "Regulacion", "Sensores", "Filtros"],
-    "F": ["Revision Reductor", "Bujias", "Calibracion Gas", "Filtros"]
+    "A": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
+    "B": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Cambio o inspeccion de bujias", "Scanneo de motor", "siliconeo de motor"],
+    "C": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Cambio de filtro de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
+    "D": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Cambio de filtro de gas", "Cambio de filtro de gasolina (externo)", "Limpieza de inyectores gasolina", "Cambio de oring y filtro de inyector", "Limpieza de obturador", "Cambio o inpeccion de bujias", "Limpieza de sensores", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
+    "E": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Cambio de filtro de gas", "Limpieza de inyectores de gas", "Cambio de filtro de gasolina (externo)", "Limpieza de inyectores gasolina", "Cambio de oring y filtro de inyector", "Limpieza de obturador", "Cambio o inpeccion de bujias", "Limpieza de sensores", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "siliconeo de motor"],
+    "F": ["Cambio de aceite", "Filtro de aire", "Filtro de aceite", "Cambio o inpeccion de bujias", "Limpieza de reductor de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "siliconeo de motor"]
 }
 
 # --- NAVEGACIÓN ---
@@ -121,7 +107,7 @@ elif st.session_state.view == 'login':
 
 elif st.session_state.view == 'admin_panel':
     if st.session_state.admin_step == 1:
-        placa = st.text_input("PLACA").upper()
+        placa = st.text_input("PLACA").upper().strip()
         ma, mo, an = st.text_input("Marca"), st.text_input("Modelo"), st.text_input("Año")
         km = st.number_input("KM Actual", min_value=0); pa = st.selectbox("Paquete", list(PAQUETES.keys()))
         if st.button("SIGUIENTE ➡️"):
@@ -133,11 +119,14 @@ elif st.session_state.view == 'admin_panel':
         notas = st.text_area("Observaciones")
         fotos = st.file_uploader("Subir Fotos", accept_multiple_files=True)
         if st.button("✅ GUARDAR"):
-            with st.spinner("Subiendo fotos y guardando..."):
+            with st.spinner("Guardando..."):
                 ids = []
                 if fotos:
                     for f in fotos:
-                        f_id = subir_foto_drive(f.getvalue(), f"{d['placa']}_{datetime.now().strftime('%H%M%S')}.jpg")
+                        img = Image.open(f).convert("RGB")
+                        img.thumbnail((800, 800))
+                        out = io.BytesIO(); img.save(out, format='JPEG', quality=70)
+                        f_id = subir_foto_drive(out.getvalue(), f"{d['placa']}_{datetime.now().strftime('%H%M%S')}.jpg")
                         ids.append(f_id)
                 db_sheet.append_row([datetime.now().strftime("%d/%m/%Y"), d['placa'], d['marca'], d['modelo'], d['anio'], d['km'], d['paquete'], ", ".join(tareas_ok), notas, ",".join(ids)])
                 st.success("¡Guardado!"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
@@ -150,14 +139,16 @@ elif st.session_state.view == 'cliente_placa':
 elif st.session_state.view == 'cliente_menu':
     st.title(f"🚗 Placa: {st.session_state.placa_cliente}")
     df = pd.DataFrame(db_sheet.get_all_records())
-    hist = df[df['placa'].astype(str).str.upper() == st.session_state.placa_cliente].to_dict('records') if not df.empty else []
+    hist = df[df['placa'].astype(str).upper() == st.session_state.placa_cliente].to_dict('records') if not df.empty else []
     
-    if st.button("📅 PRÓXIMO MANTENIMIENTO"):
-        if hist: st.success(f"Próxima visita: {int(hist[-1]['km'])+5000} KM")
-        else: st.warning("Sin datos.")
-    
-    if st.button("📋 HISTORIAL"):
+    if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
+        if hist:
+            prox = int(hist[-1].get('km', 0)) + 5000
+            st.markdown(f"<div style='background-color:#d4edda; padding:20px; border-radius:10px; text-align:center;'><h2>¡Estimado Cliente!</h2><p style='font-size:1.2em;'>Su próximo mantenimiento preventivo en <b>AUTOGAS ENERGY</b> le toca a los:</p><h1 style='color:#155724;'>{prox} KM</h1></div>", unsafe_allow_html=True)
+        else: st.warning("Sin historial.")
+
+    if st.button("📋 MANTENIMIENTO ACTUAL (HISTORIAL)", use_container_width=True):
         for r in reversed(hist):
-            with st.expander(f"Mantenimiento {r['fecha']}"):
-                st.download_button("📥 Descargar PDF con Fotos", data=generar_pdf_pro(r), file_name=f"Informe_{r['placa']}.pdf", key=f"pd_{r['km']}")
+            with st.expander(f"Servicio {r['fecha']}"):
+                st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name=f"Reporte_{r['placa']}.pdf", key=f"btn_{r['km']}")
     if st.button("⬅️ VOLVER"): st.session_state.view = 'inicio'; st.rerun()
