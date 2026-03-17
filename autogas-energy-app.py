@@ -21,7 +21,7 @@ DATOS_TALLER = {
 st.set_page_config(page_title=DATOS_TALLER["nombre"], layout="centered")
 components.html("<script>window.onbeforeunload = function() { return '¿Salir?'; };</script>", height=0)
 
-# --- CONEXIÓN GOOGLE (BLINDADA) ---
+# --- CONEXIÓN GOOGLE ---
 def conectar_google():
     try:
         scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
@@ -29,10 +29,6 @@ def conectar_google():
         client = gspread.authorize(creds)
         drive_service = build('drive', 'v3', credentials=creds)
         sheet = client.open("DB_Autogas_Energy").sheet1
-        
-        # Si el excel está vacío, ponemos las cabeceras exactas
-        if not sheet.get_all_values():
-            sheet.append_row(["fecha", "placa", "marca", "modelo", "anio", "km", "paquete", "tareas", "notas", "links_fotos"])
         return sheet, drive_service
     except Exception as e:
         st.error(f"Error de conexión: {e}")
@@ -45,7 +41,7 @@ def subir_foto_drive(file_bytes, nombre):
         media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype='image/jpeg', resumable=True)
         file = drive_service.files().create(body={'name': nombre}, media_body=media, fields='id').execute()
         return file.get('id')
-    except: return "error_foto"
+    except: return "sin_foto"
 
 # --- PDF PROFESIONAL ---
 class ReporteProfesional(FPDF):
@@ -63,20 +59,19 @@ def generar_pdf_pro(reg):
     pdf.set_font('Arial', 'B', 14); pdf.set_fill_color(230, 230, 230)
     pdf.cell(0, 10, "REPORTE TECNICO DE MANTENIMIENTO", 0, 1, 'C', True); pdf.ln(5)
     pdf.set_font('Arial', 'B', 10)
-    pdf.cell(45, 8, "PLACA:", 1, 0, 'L', True); pdf.cell(50, 8, str(reg.get('placa', 'N/A')), 1)
-    pdf.cell(45, 8, "FECHA:", 1, 0, 'L', True); pdf.cell(50, 8, str(reg.get('fecha', 'N/A')), 1, 1)
+    pdf.cell(45, 8, "PLACA:", 1, 0, 'L', True); pdf.cell(50, 8, str(reg.get('placa', '')), 1)
+    pdf.cell(45, 8, "FECHA:", 1, 0, 'L', True); pdf.cell(50, 8, str(reg.get('fecha', '')), 1, 1)
     pdf.cell(45, 8, "VEHICULO:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg.get('marca', '')} {reg.get('modelo', '')}", 1)
-    pdf.cell(45, 8, "KM:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg.get('km', '0')} KM", 1, 1)
+    pdf.cell(45, 8, "KM:", 1, 0, 'L', True); pdf.cell(50, 8, f"{reg.get('km', '')} KM", 1, 1)
     pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, f"TRABAJOS (PAQUETE {reg.get('paquete', '')})", 0, 1)
     pdf.set_font('Arial', '', 10)
     for t in str(reg.get('tareas', '')).split(", "):
         pdf.cell(10, 6, "-", 0); pdf.cell(0, 6, t, 0, 1)
     if reg.get('notas'):
         pdf.ln(5); pdf.set_font('Arial', 'B', 11); pdf.cell(0, 8, "OBSERVACIONES", 0, 1)
-        pdf.set_font('Arial', 'I', 10); pdf.multi_cell(0, 6, str(reg.get('notas', '')), 1)
+        pdf.multi_cell(0, 6, str(reg.get('notas', '')), 1)
     return pdf.output(dest='S').encode('latin-1')
 
-# --- PAQUETES ---
 PAQUETES = {
     "A": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "siliconeo de motor"],
     "B": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Cambio o inspeccion de bujias", "Scanneo de motor", "siliconeo de motor"],
@@ -97,7 +92,6 @@ if st.session_state.view == 'inicio':
     if col2.button("🛠️ ADMIN", use_container_width=True): st.session_state.view = 'login'; st.rerun()
 
 elif st.session_state.view == 'login':
-    if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
     u = st.text_input("Usuario"); p = st.text_input("Contraseña", type="password")
     if st.button("INGRESAR"):
         if u == "percy" and p == "autogas2026": st.session_state.view = 'admin_panel'; st.session_state.admin_step = 1; st.rerun()
@@ -105,17 +99,15 @@ elif st.session_state.view == 'login':
 elif st.session_state.view == 'admin_panel':
     if st.session_state.admin_step == 1:
         placa = st.text_input("PLACA").upper()
-        if placa:
-            df_all = pd.DataFrame(db_sheet.get_all_records())
-            v = df_all[df_all['placa'].astype(str).str.upper() == placa].iloc[-1] if not df_all.empty and placa in df_all['placa'].astype(str).str.upper().values else None
-            ma = st.text_input("Marca", v['marca'] if v is not None else "")
-            mo = st.text_input("Modelo", v['modelo'] if v is not None else "")
-            an = st.text_input("Año", v['anio'] if v is not None else "")
-            km = st.number_input("KM Actual", min_value=0)
-            pa = st.selectbox("Paquete", ["A","B","C","D","E","F"])
-            if st.button("SIGUIENTE ➡️"):
-                st.session_state.temp = {"placa": placa, "marca": ma, "modelo": mo, "anio": an, "km": km, "paquete": pa}
-                st.session_state.admin_step = 2; st.rerun()
+        ma = st.text_input("Marca")
+        mo = st.text_input("Modelo")
+        an = st.text_input("Año")
+        km = st.number_input("KM Actual", min_value=0)
+        pa = st.selectbox("Paquete", ["A","B","C","D","E","F"])
+        if st.button("SIGUIENTE ➡️"):
+            if not placa: st.error("Ingresa la placa"); st.stop()
+            st.session_state.temp = {"placa": placa, "marca": ma, "modelo": mo, "anio": an, "km": km, "paquete": pa}
+            st.session_state.admin_step = 2; st.rerun()
 
     elif st.session_state.admin_step == 2:
         d = st.session_state.temp; st.subheader(f"Hoja de Trabajo: {d['placa']}")
@@ -127,40 +119,38 @@ elif st.session_state.view == 'admin_panel':
                 ids = []
                 if fotos:
                     for f in fotos:
-                        img = Image.open(f).convert("RGB")
-                        img.thumbnail((800, 800))
-                        out = io.BytesIO(); img.save(out, format='JPEG', quality=70)
-                        f_id = subir_foto_drive(out.getvalue(), f"{d['placa']}_{datetime.now().strftime('%H%M%S')}.jpg")
+                        f_id = subir_foto_drive(f.getvalue(), f"{d['placa']}_{datetime.now().strftime('%H%M%S')}.jpg")
                         ids.append(f_id)
-                db_sheet.append_row([datetime.now().strftime("%d/%m/%Y"), d['placa'], d['marca'], d['modelo'], d['anio'], d['km'], d['paquete'], ", ".join(tareas_ok), notas, ",".join(ids)])
-                st.success("¡Guardado!"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
+                # GUARDADO DIRECTO SIN BUSQUEDAS PREVIAS
+                fila = [datetime.now().strftime("%d/%m/%Y"), d['placa'], d['marca'], d['modelo'], d['anio'], d['km'], d['paquete'], ", ".join(tareas_ok), notas, ",".join(ids)]
+                if not db_sheet.get_all_values(): # Si está vacío, poner cabeceras
+                    db_sheet.append_row(["fecha", "placa", "marca", "modelo", "anio", "km", "paquete", "tareas", "notas", "links_fotos"])
+                db_sheet.append_row(fila)
+                st.success("¡Registro Exitoso!"); st.session_state.view = 'inicio'; st.session_state.admin_step = 1; st.rerun()
 
 elif st.session_state.view == 'cliente_placa':
-    if st.button("⬅️ REGRESAR"): st.session_state.view = 'inicio'; st.rerun()
     p_c = st.text_input("INGRESE SU PLACA").upper()
     if st.button("CONSULTAR"):
         if p_c: st.session_state.placa_cliente = p_c; st.session_state.view = 'cliente_menu'; st.rerun()
 
 elif st.session_state.view == 'cliente_menu':
     st.title(f"🚗 Placa: {st.session_state.placa_cliente}")
-    if st.button("⬅️ REGRESAR"): st.session_state.view = 'cliente_placa'; st.rerun()
-    
-    # Cargar datos con Pandas para que la búsqueda sea infalible
-    df = pd.DataFrame(db_sheet.get_all_records())
-    if not df.empty:
-        df['placa'] = df['placa'].astype(str).str.upper().str.strip()
-        hist = df[df['placa'] == st.session_state.placa_cliente].to_dict('records')
+    df_raw = pd.DataFrame(db_sheet.get_all_records())
+    if not df_raw.empty:
+        # Forzamos los nombres de columnas a minúsculas por seguridad
+        df_raw.columns = [c.lower() for c in df_raw.columns]
+        hist = df_raw[df_raw['placa'].astype(str).str.upper() == st.session_state.placa_cliente].to_dict('records')
     else: hist = []
-    
-    if st.button("📅 PRÓXIMO MANTENIMIENTO PREVENTIVO", use_container_width=True):
-        if hist:
-            prox = int(hist[-1]['km']) + 5000
-            st.markdown(f"<div style='background-color:#d4edda; padding:20px; border-radius:10px; text-align:center;'><h2>¡Estimado Cliente!</h2><p style='font-size:1.2em;'>Su próximo mantenimiento preventivo en <b>AUTOGAS ENERGY</b> le toca a los:</p><h1 style='color:#155724;'>{prox} KM</h1></div>", unsafe_allow_html=True)
-        else: st.warning("No hay historial.")
 
-    if st.button("📋 MANTENIMIENTO ACTUAL (HISTORIAL)", use_container_width=True):
+    if st.button("📅 PRÓXIMO MANTENIMIENTO"):
+        if hist:
+            prox = int(hist[-1].get('km', 0)) + 5000
+            st.success(f"Su próximo mantenimiento es a los {prox} KM")
+        else: st.warning("No hay datos.")
+    
+    if st.button("📋 HISTORIAL"):
         if not hist: st.warning("Sin registros.")
-        else:
-            for r in reversed(hist):
-                with st.expander(f"📄 Servicio: {r['fecha']} - {r['km']} KM"):
-                    st.download_button("📥 Descargar PDF", data=generar_pdf_pro(r), file_name=f"Informe_{r['placa']}.pdf", key=f"btn_{r['fecha']}_{r['km']}")
+        for r in reversed(hist):
+            with st.expander(f"Servicio {r.get('fecha')}"):
+                st.download_button("Descargar PDF", data=generar_pdf_pro(r), file_name="Reporte.pdf", key=f"{r.get('fecha')}{r.get('km')}")
+    if st.button("⬅️ VOLVER"): st.session_state.view = 'inicio'; st.rerun()
