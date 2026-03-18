@@ -25,7 +25,7 @@ def init_google():
 
 db = init_google()
 
-# --- FUNCION PARA GENERAR PDF ---
+# --- FUNCION PARA GENERAR PDF (CORREGIDA PARA EVITAR KEYERROR) ---
 def generar_pdf(registro, tareas):
     pdf = FPDF()
     pdf.add_page()
@@ -41,24 +41,33 @@ def generar_pdf(registro, tareas):
         pdf.text(10, 20, "AUTOGAS ENERGY")
 
     pdf.set_font("Arial", 'B', 20)
+    pdf.ln(10)
     pdf.cell(0, 10, "REPORTE DE MANTENIMIENTO", ln=True, align='C')
     pdf.ln(10)
 
-    # Información del Vehículo
+    # Información del Vehículo - USANDO .get() PARA EVITAR ERRORES DE COLUMNAS
     pdf.set_font("Arial", 'B', 12)
     pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 10, f" DETALLES DEL VEHÍCULO - PLACA: {registro['placa']}", ln=True, fill=True)
+    pdf.cell(0, 10, f" DETALLES DEL VEHÍCULO - PLACA: {registro.get('placa', 'S/N')}", ln=True, fill=True)
     pdf.set_font("Arial", '', 11)
-    pdf.cell(95, 8, f"Fecha: {registro['fecha']}", border=1)
-    pdf.cell(95, 8, f"Kilometraje: {registro['km']} KM", border=1, ln=True)
-    pdf.cell(63, 8, f"Marca: {registro['marca']}", border=1)
-    pdf.cell(63, 8, f"Modelo: {registro['modelo']}", border=1)
-    pdf.cell(64, 8, f"Año: {registro['año']}", border=1, ln=True)
+    
+    fecha = registro.get('fecha', 'N/A')
+    km = registro.get('km', 'N/A')
+    marca = registro.get('marca', 'N/A')
+    modelo = registro.get('modelo', 'N/A')
+    # Aquí buscamos 'año' o 'ano' por si acaso
+    anio = registro.get('año', registro.get('ano', 'N/A'))
+
+    pdf.cell(95, 8, f"Fecha: {fecha}", border=1)
+    pdf.cell(95, 8, f"Kilometraje: {km} KM", border=1, ln=True)
+    pdf.cell(63, 8, f"Marca: {marca}", border=1)
+    pdf.cell(63, 8, f"Modelo: {modelo}", border=1)
+    pdf.cell(64, 8, f"Año: {anio}", border=1, ln=True)
     pdf.ln(5)
 
     # Trabajos Realizados
     pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, f" TRABAJO REALIZADO: {registro['paquete']}", ln=True, fill=True)
+    pdf.cell(0, 10, f" TRABAJO REALIZADO: {registro.get('paquete', 'Servicio')}", ln=True, fill=True)
     pdf.set_font("Arial", '', 10)
     for t in tareas:
         pdf.cell(0, 7, f" - {t}", ln=True)
@@ -68,7 +77,8 @@ def generar_pdf(registro, tareas):
     pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, " OBSERVACIONES DEL TÉCNICO", ln=True, fill=True)
     pdf.set_font("Arial", '', 11)
-    pdf.multi_cell(0, 8, str(registro.get('notas', registro.get('observaciones', 'Sin observaciones'))))
+    obs = registro.get('notas', registro.get('observaciones', 'Sin observaciones'))
+    pdf.multi_cell(0, 8, str(obs))
 
     return pdf.output()
 
