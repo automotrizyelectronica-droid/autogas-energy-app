@@ -25,43 +25,46 @@ def init_google():
 
 db = init_google()
 
-# --- FUNCION PARA GENERAR PDF (CORREGIDA PARA EVITAR KEYERROR) ---
+# --- FUNCION PARA GENERAR PDF (ESTRUCTURA ORIGINAL QUE FUNCIONABA) ---
 def generar_pdf(registro, tareas):
-    # Usamos fpdf2 (asegúrate que en requirements.txt diga fpdf2)
     pdf = FPDF()
     pdf.add_page()
     
-    # --- LOGO ---
+    # 1. ENCABEZADO Y LOGO
     try:
         logo_url = "https://i.postimg.cc/mD3mzc9v/logo-autogas.png"
         response = requests.get(logo_url)
         logo_data = BytesIO(response.content)
         pdf.image(logo_data, x=10, y=8, w=40)
     except:
-        pdf.set_font("helvetica", 'B', 16)
+        pdf.set_font("Arial", 'B', 16)
         pdf.text(10, 20, "AUTOGAS ENERGY")
 
-    # --- DATOS DEL TALLER (Rellena con tus datos reales) ---
-    pdf.set_font("helvetica", '', 9)
+    # 2. DATOS DEL TALLER (Añadidos a la derecha)
+    pdf.set_font("Arial", '', 9)
     pdf.set_xy(140, 8)
-    pdf.multi_cell(60, 5, "AUTOGAS ENERGY\nLima, Perú\nWhatsApp: +51 999 999 999\nWeb: autogasenergy.com", align='R')
+    pdf.multi_cell(60, 4, "AUTOGAS ENERGY\nLima, Perú\nWhatsApp: +51 987 654 321\nWeb: autogasenergy.com", align='R')
 
     pdf.ln(15)
-    pdf.set_font("helvetica", 'B', 20)
+    pdf.set_font("Arial", 'B', 20)
     pdf.cell(0, 10, "REPORTE DE MANTENIMIENTO", ln=True, align='C')
     pdf.ln(5)
 
-    # --- DATOS DEL VEHÍCULO ---
-    pdf.set_font("helvetica", 'B', 12)
-    pdf.set_fill_color(0, 150, 255) # Azul
-    pdf.set_text_color(255, 255, 255)
+    # 3. INFORMACIÓN DEL VEHÍCULO
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_fill_color(240, 240, 240)
     pdf.cell(0, 10, f" DETALLES DEL VEHÍCULO - PLACA: {registro.get('placa', 'S/N')}", ln=True, fill=True)
     
-    pdf.set_text_color(0, 0, 0)
-    pdf.set_font("helvetica", '', 11)
+    pdf.set_font("Arial", '', 11)
     
-    # Buscamos el año con todas las variantes posibles
+    # --- LÓGICA PARA RECUPERAR EL AÑO CORRECTAMENTE ---
+    # Buscamos 'año', 'anio', 'ano' o cualquier columna que contenga esas letras
     anio_val = registro.get('año', registro.get('anio', registro.get('ano', 'N/A')))
+    if anio_val == 'N/A':
+        for k, v in registro.items():
+            if 'añ' in k.lower() or 'an' in k.lower():
+                anio_val = v
+                break
 
     pdf.cell(95, 8, f"Fecha: {registro.get('fecha', 'N/A')}", border=1)
     pdf.cell(95, 8, f"Kilometraje: {registro.get('km', 'N/A')} KM", border=1, ln=True)
@@ -70,24 +73,24 @@ def generar_pdf(registro, tareas):
     pdf.cell(64, 8, f"Año: {anio_val}", border=1, ln=True)
     pdf.ln(5)
 
-    # --- TRABAJOS ---
-    pdf.set_font("helvetica", 'B', 12)
-    pdf.set_fill_color(240, 240, 240)
+    # 4. TRABAJOS REALIZADOS
+    pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, f" TRABAJO REALIZADO: {registro.get('paquete', 'Servicio')}", ln=True, fill=True)
-    pdf.set_font("helvetica", '', 10)
+    pdf.set_font("Arial", '', 10)
     for t in tareas:
-        pdf.cell(0, 7, f" [X] {t}", ln=True)
+        pdf.cell(0, 7, f" - {t}", ln=True)
     
     pdf.ln(5)
-    # --- OBSERVACIONES ---
-    pdf.set_font("helvetica", 'B', 12)
+
+    # 5. OBSERVACIONES
+    pdf.set_font("Arial", 'B', 12)
     pdf.cell(0, 10, " OBSERVACIONES DEL TÉCNICO", ln=True, fill=True)
-    pdf.set_font("helvetica", '', 11)
+    pdf.set_font("Arial", '', 11)
     obs = registro.get('notas', registro.get('observaciones', 'Sin observaciones'))
     pdf.multi_cell(0, 8, str(obs))
 
-    # --- ESTA LÍNEA ES LA CLAVE PARA QUE NO SALGA VACÍO ---
-    return pdf.output()
+    # ESTA LÍNEA ES LA QUE TE FUNCIONABA (NO LA CAMBIES)
+    return bytes(pdf.output())output()
     
 
 # --- 2. CONTENIDO DE PAQUETES (Checklist) ---
