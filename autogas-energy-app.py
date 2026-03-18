@@ -92,7 +92,8 @@ def generar_pdf(registro, tareas):
     obs = registro.get('notas', registro.get('observaciones', 'Sin observaciones'))
     pdf.multi_cell(0, 8, str(obs))
 
-    return bytes(pdf.output())
+    return pdf.output()
+    
 
 # --- 2. CONTENIDO DE PAQUETES (Checklist) ---
 PAQUETES = {
