@@ -5,6 +5,9 @@ import gspread
 from google.oauth2.service_account import Credentials
 import cloudinary
 import cloudinary.uploader
+from fpdf import FPDF  # <--- Nueva librería para el PDF
+import requests
+from io import BytesIO
 
 # --- 1. CONFIGURACIÓN DE NUBE ---
 cloudinary.config(
@@ -21,6 +24,53 @@ def init_google():
     return gspread.authorize(creds).open("DB_Autogas_Energy").sheet1
 
 db = init_google()
+
+# --- FUNCION PARA GENERAR PDF ---
+def generar_pdf(registro, tareas):
+    pdf = FPDF()
+    pdf.add_page()
+    
+    # Encabezado con Logo
+    try:
+        logo_url = "https://i.postimg.cc/mD3mzc9v/logo-autogas.png"
+        response = requests.get(logo_url)
+        logo_data = BytesIO(response.content)
+        pdf.image(logo_data, x=10, y=8, w=40)
+    except:
+        pdf.set_font("Arial", 'B', 16)
+        pdf.text(10, 20, "AUTOGAS ENERGY")
+
+    pdf.set_font("Arial", 'B', 20)
+    pdf.cell(0, 10, "REPORTE DE MANTENIMIENTO", ln=True, align='C')
+    pdf.ln(10)
+
+    # Información del Vehículo
+    pdf.set_font("Arial", 'B', 12)
+    pdf.set_fill_color(240, 240, 240)
+    pdf.cell(0, 10, f" DETALLES DEL VEHÍCULO - PLACA: {registro['placa']}", ln=True, fill=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.cell(95, 8, f"Fecha: {registro['fecha']}", border=1)
+    pdf.cell(95, 8, f"Kilometraje: {registro['km']} KM", border=1, ln=True)
+    pdf.cell(63, 8, f"Marca: {registro['marca']}", border=1)
+    pdf.cell(63, 8, f"Modelo: {registro['modelo']}", border=1)
+    pdf.cell(64, 8, f"Año: {registro['año']}", border=1, ln=True)
+    pdf.ln(5)
+
+    # Trabajos Realizados
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, f" TRABAJO REALIZADO: {registro['paquete']}", ln=True, fill=True)
+    pdf.set_font("Arial", '', 10)
+    for t in tareas:
+        pdf.cell(0, 7, f" - {t}", ln=True)
+    
+    pdf.ln(5)
+    # Observaciones
+    pdf.set_font("Arial", 'B', 12)
+    pdf.cell(0, 10, " OBSERVACIONES DEL TÉCNICO", ln=True, fill=True)
+    pdf.set_font("Arial", '', 11)
+    pdf.multi_cell(0, 8, str(registro.get('notas', registro.get('observaciones', 'Sin observaciones'))))
+
+    return pdf.output()
 
 # --- 2. CONTENIDO DE PAQUETES (Checklist) ---
 PAQUETES = {
@@ -163,7 +213,8 @@ elif st.session_state.view == 'cliente':
                     with st.expander(f"📅 {r['fecha']} | 📍 {r['km']} KM"):
                         st.markdown(f"### Trabajo Realizado: **{r['paquete']}**")
                         st.write("**Servicios incluidos:**")
-                        for item in PAQUETES.get(r['paquete'], ["Servicio General"]):
+                        tareas_lista = PAQUETES.get(r['paquete'], ["Servicio General"])
+                        for item in tareas_lista:
                             st.markdown(f'<div class="check-item">✅ {item}</div>', unsafe_allow_html=True)
                         
                         st.markdown("---")
@@ -175,7 +226,14 @@ elif st.session_state.view == 'cliente':
                             for url in links:
                                 if "http" in url: st.image(url, use_container_width=True)
                         
-                        st.download_button("📥 Descargar Reporte de Servicio", data=str(r), file_name=f"Servicio_{r['placa']}_{r['fecha']}.txt")
+                        # NUEVO BOTÓN PDF PROFESIONAL
+                        pdf_data = generar_pdf(r, tareas_lista)
+                        st.download_button(
+                            label="📥 Descargar Reporte PDF Profesional",
+                            data=pdf_data,
+                            file_name=f"Reporte_{r['placa']}_{r['fecha']}.pdf",
+                            mime="application/pdf"
+                        )
         else: st.warning("No se encontró historial para esta placa.")
 
     if st.button("⬅️ VOLVER AL INICIO"): st.session_state.view = 'home'; st.session_state.c_tab = 'none'; st.rerun()
