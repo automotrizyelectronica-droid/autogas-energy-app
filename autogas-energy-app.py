@@ -43,7 +43,7 @@ def generar_pdf(registro, tareas):
     # 2. DATOS DEL TALLER (Añadidos a la derecha)
     pdf.set_font("Arial", '', 9)
     pdf.set_xy(140, 8)
-    pdf.multi_cell(60, 4, "AUTOGAS ENERGY\nLima, Perú\nWhatsApp: +51 987 654 321\nDireccion: Av. Canto Grande 2916 San Juan de Lurigancho", align='R')
+    pdf.multi_cell(60, 4, "AUTOGAS ENERGY\nLima, Perú\nWhatsApp: +51 987 654 321\nDireccion: Av. Canto Grande 2916\nSan Juan de Lurigancho", align='R')
 
     pdf.ln(15)
     pdf.set_font("Arial", 'B', 20)
