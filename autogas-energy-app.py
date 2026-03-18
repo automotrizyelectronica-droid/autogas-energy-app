@@ -79,8 +79,8 @@ def generar_pdf(registro, tareas):
     pdf.set_font("Arial", '', 11)
     obs = registro.get('notas', registro.get('observaciones', 'Sin observaciones'))
     pdf.multi_cell(0, 8, str(obs))
-
-    return pdf.output()
+  
+    return bytes(pdf.output())
 
 # --- 2. CONTENIDO DE PAQUETES (Checklist) ---
 PAQUETES = {
