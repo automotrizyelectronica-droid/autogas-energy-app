@@ -1,133 +1,182 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Paquetes de Mantenimiento - AUTOGAS ENERGY</title>
+import streamlit as st
+import pandas as pd
+from datetime import datetime
+import gspread
+from google.oauth2.service_account import Credentials
+import cloudinary
+import cloudinary.uploader
+
+# --- 1. CONFIGURACIÓN DE NUBE ---
+cloudinary.config(
+  cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
+  api_key = st.secrets["CLOUDINARY_API_KEY"],
+  api_secret = st.secrets["CLOUDINARY_API_SECRET"],
+  secure = True
+)
+
+@st.cache_resource
+def init_google():
+    creds = Credentials.from_service_account_info(st.secrets["google_credentials"], 
+            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
+    return gspread.authorize(creds).open("DB_Autogas_Energy").sheet1
+
+db = init_google()
+
+# --- 2. CONTENIDO DE PAQUETES (Checklist) ---
+PAQUETES = {
+    "PAQUETE A": ["Cambio de Aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerante y aceite","Scanneo de motor", "Siliconeo de motor"],
+    "PAQUETE B": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Cambio o inspeccion de bujias", "Scanneo de motor", "Siliconeo de motor"],
+    "PAQUETE C": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio de filtro de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Siliconeo de motor"],
+    "PAQUETE D": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio de filtro de gas", "Cambio de filtro de gasolina (externo)", "Limpieza de inyectores gasolina", "Cambio de oring y filtro de inyector", "Limpieza de obturador", "Cambio o inpeccion de bujias", "Limpieza de sensores (maf - map - cmp - ckp - vvt - o2)", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Siliconeo de motor"],
+    "PAQUETE E": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio de filtro de gas", "Limpieza de inyectores de gas", "Cambio de filtro de gasolina (externo)", "Limpieza de inyectores gasolina", "Cambio de oring y filtro de inyector", "Limpieza de obturador", "Cambio o inpeccion de bujias", "Limpieza de sensores  (maf - map - cmp - ckp - vvt - o2)", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "siliconeo de motor"],
+    "PAQUETE F": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio o inpeccion de bujias", "Mantenimiento de reductor de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "Siliconeo de motor"]
+}
+
+# --- 3. DISEÑO VISUAL ---
+st.set_page_config(page_title="AUTOGAS ENERGY", layout="centered")
+st.markdown("""
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f9; color: #333; padding: 20px; }
-        .container { max-width: 1200px; margin: auto; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
-        .card { background: white; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); padding: 20px; border-top: 5px solid #0056b3; }
-        .card h2 { color: #0056b3; border-bottom: 2px solid #eee; padding-bottom: 10px; margin-top: 0; }
-        .km { font-weight: bold; color: #d9534f; margin-bottom: 15px; display: block; }
-        ul { list-style: none; padding: 0; }
-        li { padding: 8px 0; border-bottom: 1px solid #f0f0f0; font-size: 0.95em; }
-        li::before { content: "✔"; color: #28a745; margin-right: 10px; font-weight: bold; }
-        .card:hover { transform: translateY(-5px); transition: 0.3s; }
+    .stApp { background-color: #0b0e11; color: #f0f0f0; }
+    .main-card { background: rgba(255, 255, 255, 0.05); border-radius: 20px; padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 20px; }
+    .stButton>button { width: 100%; border-radius: 12px; height: 3.5em; background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important; color: white !important; font-weight: bold; border: none; }
+    .prox-box { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); padding: 40px; border-radius: 25px; text-align: center; color: white; box-shadow: 0 10px 30px rgba(0,198,255,0.3); }
+    h1, h2, h3 { color: #00c6ff !important; text-align: center; font-weight: 800; }
+    .check-item { background: rgba(0, 198, 255, 0.1); padding: 8px 15px; border-radius: 8px; margin: 5px 0; border-left: 4px solid #00c6ff; }
     </style>
-</head>
-<body>
+""", unsafe_allow_html=True)
 
-<h1 style="text-align:center;">Programación de Mantenimientos - AUTOGAS ENERGY</h1>
+# --- 4. LÓGICA DE ESTADO ---
+if 'view' not in st.session_state: st.session_state.view = 'home'
+if 'step_admin' not in st.session_state: st.session_state.step_admin = 1
+if 'c_tab' not in st.session_state: st.session_state.c_tab = 'none'
 
-<div class="container">
-    <div class="card">
-        <h2>Mantenimiento A</h2>
-        <span class="km">5k, 25k, 35k, 55k, 65k, 85k, 95k Km</span>
-        <ul>
-            <li>Cambio de aceite</li>
-            <li>Cambio de filtro de aire</li>
-            <li>Cambio de filtro de aceite</li>
-            <li>Inspección de fugas de gas</li>
-            <li>Inspección de fugas de refrigerante y aceite</li>
-            <li>Scanneo de motor</li>
-            <li>Siliconeo de motor</li>
-        </ul>
-    </div>
+def get_data():
+    df = pd.DataFrame(db.get_all_records())
+    df.columns = [c.lower().strip() for c in df.columns]
+    return df
 
-    <div class="card">
-        <h2>Mantenimiento B</h2>
-        <span class="km">10k, 20k, 40k, 50k, 70k, 80k Km</span>
-        <ul>
-            <li>Cambio de aceite</li>
-            <li>Cambio de filtro de aire</li>
-            <li>Cambio de filtro de aceite</li>
-            <li>Inspección de fugas de gas</li>
-            <li>Inspección de fugas de refrigerante y aceite</li>
-            <li>Cambio o inspección de bujías</li>
-            <li>Scanneo de motor</li>
-            <li>Siliconeo de motor</li>
-        </ul>
-    </div>
+# --- 5. VISTA: HOME ---
+if st.session_state.view == 'home':
+    st.image("https://i.postimg.cc/mD3mzc9v/logo-autogas.png", width=230)
+    st.markdown('<div class="main-card"><h1>CENTRO DE SERVICIOS</h1>', unsafe_allow_html=True)
+    if st.button("👤 MODO CLIENTE"): st.session_state.view = 'cliente'; st.rerun()
+    st.markdown("<br>", unsafe_allow_html=True)
+    if st.button("🛠️ MODO ADMINISTRADOR"): st.session_state.view = 'login'; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    <div class="card">
-        <h2>Mantenimiento C</h2>
-        <span class="km">15k, 45k, 75k Km</span>
-        <ul>
-            <li>Cambio de aceite</li>
-            <li>Cambio de filtro de aire</li>
-            <li>Cambio de filtro de aceite</li>
-            <li>Cambio de filtro de gas</li>
-            <li>Inspección de fugas de gas</li>
-            <li>Inspección de fugas de refrigerante y aceite</li>
-            <li>Scanneo de motor</li>
-            <li>Siliconeo de motor</li>
-        </ul>
-    </div>
+# --- 6. VISTA: LOGIN ---
+elif st.session_state.view == 'login':
+    st.markdown('<div class="main-card"><h3>ACCESO AUTORIZADO</h3>', unsafe_allow_html=True)
+    u = st.text_input("Usuario")
+    p = st.text_input("Clave", type="password")
+    if st.button("ENTRAR"):
+        if u == "percy" and p == "autogas2026": 
+            st.session_state.view = 'admin'; st.rerun()
+    if st.button("VOLVER"): st.session_state.view = 'home'; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    <div class="card">
-        <h2>Mantenimiento D</h2>
-        <span class="km">30k, 90k Km</span>
-        <ul>
-            <li>Cambio de aceite</li>
-            <li>Cambio de filtro de aire</li>
-            <li>Cambio de filtro de aceite</li>
-            <li>Cambio de filtro de gas</li>
-            <li>Cambio de filtro de gasolina (externo)</li>
-            <li>Limpieza de inyectores gasolina</li>
-            <li>Cambio de oring y filtro de inyector</li>
-            <li>Limpieza de obturador</li>
-            <li>Cambio o inspección de bujías</li>
-            <li>Limpieza de sensores (MAF - MAP - CMP - CKP - VVT - O2)</li>
-            <li>Inspección de fugas de gas</li>
-            <li>Inspección de fugas de refrigerante y aceite</li>
-            <li>Scanneo de motor</li>
-            <li>Siliconeo de motor</li>
-        </ul>
-    </div>
+# --- 7. VISTA: ADMINISTRADOR ---
+elif st.session_state.view == 'admin':
+    st.markdown(f'<div class="main-card"><h2>REGISTRO TÉCNICO - PASO {st.session_state.step_admin}</h2>', unsafe_allow_html=True)
+    
+    if st.session_state.step_admin == 1:
+        placa = st.text_input("PLACA DEL VEHÍCULO").upper().strip()
+        if st.button("CONTINUAR ➡️"):
+            df = get_data()
+            st.session_state.form = {"placa": placa}
+            match = df[df['placa'].astype(str) == placa] if 'placa' in df.columns else pd.DataFrame()
+            if not match.empty:
+                last = match.iloc[-1]
+                st.session_state.form.update({"marca": last.get('marca',''), "modelo": last.get('modelo',''), "año": last.get('año','')})
+                st.session_state.step_admin = 2
+            else: st.session_state.step_admin = 1.5
+            st.rerun()
 
-    <div class="card">
-        <h2>Mantenimiento E</h2>
-        <span class="km">60k Km</span>
-        <ul>
-            <li>Cambio de aceite</li>
-            <li>Cambio de filtro de aire</li>
-            <li>Cambio de filtro de aceite</li>
-            <li>Cambio de filtro de gas</li>
-            <li>Limpieza de inyectores de gas</li>
-            <li>Cambio de filtro de gasolina (externo)</li>
-            <li>Limpieza de inyectores gasolina</li>
-            <li>Cambio de oring y filtro de inyector</li>
-            <li>Limpieza de obturador</li>
-            <li>Cambio o inspección de bujías</li>
-            <li>Limpieza de sensores (MAF - MAP - CMP - CKP - VVT - O2)</li>
-            <li>Inspección de fugas de gas</li>
-            <li>Inspección de fugas de refrigerante y aceite</li>
-            <li>Scanneo de motor</li>
-            <li>Regulación / Calibración de gas</li>
-            <li>Siliconeo de motor</li>
-        </ul>
-    </div>
+    elif st.session_state.step_admin == 1.5:
+        st.write("Vehículo no registrado. Complete los datos:")
+        st.session_state.form["marca"] = st.text_input("Marca")
+        st.session_state.form["modelo"] = st.text_input("Modelo")
+        st.session_state.form["año"] = st.text_input("Año")
+        if st.button("REGISTRAR Y SEGUIR"): st.session_state.step_admin = 2; st.rerun()
 
-    <div class="card">
-        <h2>Mantenimiento F</h2>
-        <span class="km">100k Km</span>
-        <ul>
-            <li>Cambio de aceite</li>
-            <li>Cambio de filtro de aire</li>
-            <li>Cambio de filtro de aceite</li>
-            <li>Cambio o inspección de bujías</li>
-            <li>Limpieza de reductor de gas</li>
-            <li>Inspección de fugas de gas</li>
-            <li>Inspección de fugas de refrigerante y aceite</li>
-            <li>Scanneo de motor</li>
-            <li>Regulación / Calibración de gas</li>
-            <li>Siliconeo de motor</li>
-        </ul>
-    </div>
-</div>
+    elif st.session_state.step_admin == 2:
+        st.write(f"**Auto:** {st.session_state.form['placa']} | {st.session_state.form['marca']}")
+        st.session_state.form["paquete"] = st.selectbox("Seleccione el Paquete Realizado", list(PAQUETES.keys()))
+        st.session_state.form["km"] = st.number_input("Kilometraje Actual", min_value=0)
+        if st.button("IR A DETALLES Y FOTOS ➡️"): st.session_state.step_admin = 3; st.rerun()
 
-<p style="text-align:center; margin-top:30px; color:#666;">* La secuencia se repite a partir de los 105 mil Km (Inicia ciclo en Mantenimiento A).</p>
+    elif st.session_state.step_admin == 3:
+        paq_sel = st.session_state.form["paquete"]
+        st.subheader(f"📋 Checklist: {paq_sel}")
+        for item in PAQUETES[paq_sel]:
+            st.checkbox(item, value=True, key=f"check_{item}")
+        
+        st.write("---")
+        st.session_state.form["obs"] = st.text_area("Cuadro de Observaciones del Técnico")
+        fotos = st.file_uploader("Evidencia Fotográfica (Cámara/Galería)", accept_multiple_files=True)
+        
+        if st.button("✅ FINALIZAR Y GUARDAR TODO"):
+            with st.spinner("Subiendo datos y fotos..."):
+                urls = [cloudinary.uploader.upload(f.getvalue(), folder=f"Autogas_{st.session_state.form['placa']}")['secure_url'] for f in fotos] if fotos else []
+                f = st.session_state.form
+                db.append_row([datetime.now().strftime("%d/%m/%Y"), f['placa'], f['marca'], f['modelo'], f['año'], f['km'], f['paquete'], "Completado", f['obs'], ",".join(urls)])
+                st.success("¡Servicio Guardado con Éxito!"); st.session_state.view = 'home'; st.session_state.step_admin = 1; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-</body>
-</html>
+# --- 8. VISTA: CLIENTE ---
+elif st.session_state.view == 'cliente':
+    st.markdown('<div class="main-card">', unsafe_allow_html=True)
+    placa_c = st.text_input("INGRESE SU PLACA PARA CONSULTAR").upper().strip()
+    
+    if placa_c:
+        df = get_data()
+        hist = df[df['placa'].astype(str) == placa_c].to_dict('records')
+        
+        if hist:
+            st.write("---")
+            c1, c2, c3 = st.columns(3)
+            if c1.button("PRÓXIMO\nMANTENIMIENTO"): st.session_state.c_tab = 'prox'
+            if c2.button("MANTENIMIENTO\nACTUAL"): st.session_state.c_tab = 'actual'
+            if c3.button("HISTORIAL DE\nDIAGNÓSTICOS"): st.session_state.c_tab = 'hist'
+            
+            # --- OPCIÓN 1: PREVENTIVO ---
+            if st.session_state.c_tab == 'prox':
+                prox_km = int(hist[-1]['km']) + 5000
+                st.markdown(f"""
+                    <div class="prox-box">
+                        <h2 style="color:white !important;">PRÓXIMO MANTENIMIENTO</h2>
+                        <p style="font-size:18px;">Su próximo mantenimiento en el taller <b>AUTOGAS ENERGY</b> es a los:</p>
+                        <h1 style="color:white !important; font-size:80px;">{prox_km} KM</h1>
+                    </div>
+                """, unsafe_allow_html=True)
+            
+            # --- OPCIÓN 2: MANTENIMIENTO ACTUAL / DETALLE ---
+            elif st.session_state.c_tab in ['actual', 'hist']:
+                if st.session_state.c_tab == 'actual':
+                    st.subheader("Mantenimiento Reciente")
+                    servicios = [hist[-1]]
+                else:
+                    st.subheader("Historial de Diagnósticos")
+                    servicios = reversed(hist)
+
+                for r in servicios:
+                    with st.expander(f"📅 {r['fecha']} | 📍 {r['km']} KM"):
+                        st.markdown(f"### Trabajo Realizado: **{r['paquete']}**")
+                        st.write("**Servicios incluidos:**")
+                        for item in PAQUETES.get(r['paquete'], ["Servicio General"]):
+                            st.markdown(f'<div class="check-item">✅ {item}</div>', unsafe_allow_html=True)
+                        
+                        st.markdown("---")
+                        st.write(f"**Observaciones:** {r.get('notas', r.get('observaciones', 'Sin observaciones'))}")
+                        
+                        links = str(r.get('links_fotos','')).split(",")
+                        if links and links[0] != "":
+                            st.write("**Evidencia Visual:**")
+                            for url in links:
+                                if "http" in url: st.image(url, use_container_width=True)
+                        
+                        st.download_button("📥 Descargar Reporte de Servicio", data=str(r), file_name=f"Servicio_{r['placa']}_{r['fecha']}.txt")
+        else: st.warning("No se encontró historial para esta placa.")
+
+    if st.button("⬅️ VOLVER AL INICIO"): st.session_state.view = 'home'; st.session_state.c_tab = 'none'; st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
