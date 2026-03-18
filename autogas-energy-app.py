@@ -90,7 +90,7 @@ def generar_pdf(registro, tareas):
     pdf.multi_cell(0, 8, str(obs))
 
     # ESTA LÍNEA ES LA QUE TE FUNCIONABA (NO LA CAMBIES)
-    return bytes(pdf.output())output()
+    return bytes(pdf.output())
     
 
 # --- 2. CONTENIDO DE PAQUETES (Checklist) ---
