@@ -265,7 +265,7 @@ elif st.session_state.view == 'cliente':
             st.write("---")
             c1, c2, c3 = st.columns(3)
             if c1.button("PRÓXIMO\nMANTENIMIENTO"): st.session_state.c_tab = 'prox'
-            if c2.button("MANTENIMIENTO\nACTUAL"): st.session_state.c_tab = 'actual'
+            if c2.button("MANTENIMIENTO\nREALIZADO"): st.session_state.c_tab = 'actual'
             if c3.button("HISTORIAL DE\nDIAGNÓSTICOS"): st.session_state.c_tab = 'hist'
             
             # --- OPCIÓN 1: PREVENTIVO ---
