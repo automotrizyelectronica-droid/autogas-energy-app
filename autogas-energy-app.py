@@ -268,6 +268,7 @@ elif st.session_state.view == 'admin':
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 8. VISTA: CLIENTE (CON BOTÓN DE BÚSQUEDA) ---
+# --- 8. VISTA: CLIENTE (CORREGIDO) ---
 elif st.session_state.view == 'cliente':
     st.markdown('<div class="main-card">', unsafe_allow_html=True)
     
@@ -304,7 +305,7 @@ elif st.session_state.view == 'cliente':
             # --- OPCIÓN 2: MANTENIMIENTO REALIZADO ---
             elif st.session_state.c_tab == 'actual':
                 st.subheader("Mantenimientos Recientes")
-                servicios = [hist[-1]] # Solo el último
+                servicios = [hist[-1]]
                 for r in servicios:
                     with st.expander(f"📅 {r['fecha']} | 📍 {r['km']} KM"):
                         st.markdown(f"### Trabajo Realizado: **{r['paquete']}**")
@@ -316,22 +317,24 @@ elif st.session_state.view == 'cliente':
                         st.write(f"**Observaciones:** {r.get('notas', r.get('observaciones', 'Sin observaciones'))}")
                         links = str(r.get('links_fotos','')).split(",")
                         if links and links[0] != "":
-                            st.write("**Evidencia Visual:**")
                             for url in links:
                                 if "http" in url: st.image(url, use_container_width=True)
                         pdf_data = generar_pdf(r, tareas_lista)
-                        st.download_button(label="📥 Descargar Reporte PDF", data=pdf_data, file_name=f"Reporte_{r['placa']}.pdf", mime="application/pdf", key=f"btn_{r['km']}")
+                        st.download_button(label="📥 Reporte PDF", data=pdf_data, file_name=f"Reporte_{r['placa']}.pdf", mime="application/pdf", key=f"btn_{r['km']}")
 
-            # --- OPCIÓN 3: OTROS SERVICIOS (BLOQUEADO) ---
+            # --- OPCIÓN 3: OTROS SERVICIOS ---
             elif st.session_state.c_tab == 'hist':
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.info("🔧 **Próximamente:** Aquí podrás visualizar tus diagnósticos y otros servicios adicionales. Por ahora, esta sección se encuentra en mantenimiento.")
-        else: st.warning("No se encontró historial para esta placa.")
+                st.info("🔧 **Próximamente:** Aquí podrás visualizar tus diagnósticos y otros servicios adicionales.")
+        else:
+            st.warning("No se encontró historial para esta placa.")
 
-   st.markdown('<div class="btn-volver">', unsafe_allow_html=True)
+    # --- BOTÓN VOLVER (SANGRE CORREGIDA) ---
+    st.markdown('<div class="btn-volver">', unsafe_allow_html=True)
     if st.button("⬅️ VOLVER AL INICIO"): 
         st.session_state.view = 'home'
         st.session_state.c_tab = 'none'
-        st.session_state.busqueda_activa = False # Limpiamos la búsqueda también
+        st.session_state.busqueda_activa = False
         st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)True)
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True) # Cierra el main-card
