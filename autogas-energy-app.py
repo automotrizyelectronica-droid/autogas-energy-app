@@ -144,9 +144,9 @@ def get_data():
     df.columns = [c.lower().strip() for c in df.columns]
     return df
 
-# --- 5. VISTA: HOME (MÉTODO DE CENTRADO GARANTIZADO) ---
+# --- 5. VISTA: HOME (DISEÑO DE OPCIÓN ÚNICA) ---
 if st.session_state.view == 'home':
-    # 1. Logo Centrado (Este ya funciona)
+    # 1. Logo Centrado (Igual al anterior)
     st.markdown(
         f"""
         <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 20px;">
@@ -156,53 +156,58 @@ if st.session_state.view == 'home':
         unsafe_allow_html=True
     )
     
-    # 2. Título Centrado
+    # 2. Título del Taller Centrado
     st.markdown('<div style="text-align: center;" class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
     
-    # --- ESTILOS PARA LOS BOTONES ---
+    # --- ESTILOS CSS PARA FORZAR EL CENTRADO ---
     st.markdown("""
         <style>
-            /* Forzamos a que el contenedor de botones de Streamlit no tenga margen izquierdo */
-            [data-testid="stVerticalBlock"] > div {
-                flex-direction: column;
-                align-items: center;
+            /* Centrado de bloques internos de Streamlit */
+            .stButton {
+                display: flex;
+                justify-content: center;
             }
             
-            /* Botón Grande (Cliente) */
+            /* BOTÓN GIGANTE (CLIENTE) */
             .div-cliente button {
-                height: 5.5em !important;
-                width: 300px !important; /* Ancho fijo para asegurar el centro */
-                font-size: 20px !important;
+                height: 7em !important; /* Super alto */
+                width: 100% !important;
+                max-width: 500px !important; /* Gran tamaño en PC */
+                font-size: 26px !important; /* Letra muy grande */
                 background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
-                border-radius: 20px !important;
-                display: block;
-                margin: 0 auto;
+                border-radius: 25px !important;
+                box-shadow: 0 10px 20px rgba(0,114,255,0.4) !important; /* Sombra para que resalte */
+                margin-top: 20px;
             }
             
-            /* Botón Pequeño (Admin) */
+            /* BOTÓN MINIATURA (ADMIN) */
             .div-admin button {
-                height: 2.5em !important;
-                width: 180px !important;
-                font-size: 13px !important;
+                height: 2em !important;
+                width: 150px !important;
+                font-size: 11px !important;
                 background: transparent !important;
-                border: 1px solid rgba(255,255,255,0.2) !important;
-                color: #777 !important;
-                display: block;
-                margin: 100px auto 0 auto; /* 100px de espacio arriba y centrado */
+                border: none !important; /* Sin bordes para que parezca solo texto */
+                color: #444 !important; /* Color muy oscuro/discreto */
+                margin-top: 120px !important; /* Gran espacio de separación */
+                opacity: 0.6;
+            }
+            .div-admin button:hover {
+                color: #888 !important;
+                background: transparent !important;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # 3. Botón Cliente envuelto en un DIV centrado
-    st.markdown('<div class="div-cliente" style="display: flex; justify-content: center; width: 100%;">', unsafe_allow_html=True)
+    # 3. BOTÓN PRINCIPAL (CLIENTE) - La "Única" Opción
+    st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
     if st.button("👤 CONSULTAR MI VEHÍCULO"): 
         st.session_state.view = 'cliente'
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 4. Botón Admin envuelto en un DIV centrado
-    st.markdown('<div class="div-admin" style="display: flex; justify-content: center; width: 100%;">', unsafe_allow_html=True)
-    if st.button("🛠️ Acceso Técnico"): 
+    # 4. BOTÓN SECUNDARIO (ADMIN) - Casi invisible
+    st.markdown('<div class="div-admin">', unsafe_allow_html=True)
+    if st.button("Acceso Técnico"): 
         st.session_state.view = 'login'
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
