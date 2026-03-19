@@ -279,15 +279,10 @@ elif st.session_state.view == 'cliente':
                     </div>
                 """, unsafe_allow_html=True)
             
-            # --- OPCIÓN 2: MANTENIMIENTO REALIZADO / DETALLE ---
-            elif st.session_state.c_tab in ['actual', 'hist']:
-                if st.session_state.c_tab == 'actual':
-                    st.subheader("Mantenimientos Recientes")
-                    servicios = [hist[-1]]
-                else:
-                    st.subheader("Servicios Realizados")
-                    servicios = reversed(hist)
-
+            # --- OPCIÓN 2: MANTENIMIENTO REALIZADO ---
+            elif st.session_state.c_tab == 'actual':
+                st.subheader("Mantenimientos Recientes")
+                servicios = [hist[-1]] # Solo el último
                 for r in servicios:
                     with st.expander(f"📅 {r['fecha']} | 📍 {r['km']} KM"):
                         st.markdown(f"### Trabajo Realizado: **{r['paquete']}**")
@@ -295,24 +290,20 @@ elif st.session_state.view == 'cliente':
                         tareas_lista = PAQUETES.get(r['paquete'], ["Servicio General"])
                         for item in tareas_lista:
                             st.markdown(f'<div class="check-item">✅ {item}</div>', unsafe_allow_html=True)
-                        
                         st.markdown("---")
                         st.write(f"**Observaciones:** {r.get('notas', r.get('observaciones', 'Sin observaciones'))}")
-                        
                         links = str(r.get('links_fotos','')).split(",")
                         if links and links[0] != "":
                             st.write("**Evidencia Visual:**")
                             for url in links:
                                 if "http" in url: st.image(url, use_container_width=True)
-                        
-                        # NUEVO BOTÓN PDF PROFESIONAL
                         pdf_data = generar_pdf(r, tareas_lista)
-                        st.download_button(
-                            label="📥 Descargar Reporte PDF Profesional",
-                            data=pdf_data,
-                            file_name=f"Reporte_{r['placa']}_{r['fecha']}.pdf",
-                            mime="application/pdf"
-                        )
+                        st.download_button(label="📥 Descargar Reporte PDF", data=pdf_data, file_name=f"Reporte_{r['placa']}.pdf", mime="application/pdf", key=f"btn_{r['km']}")
+
+            # --- OPCIÓN 3: OTROS SERVICIOS (BLOQUEADO) ---
+            elif st.session_state.c_tab == 'hist':
+                st.markdown("<br>", unsafe_allow_html=True)
+                st.info("🔧 **Próximamente:** Aquí podrás visualizar tus diagnósticos y otros servicios adicionales. Por ahora, esta sección se encuentra en mantenimiento.")
         else: st.warning("No se encontró historial para esta placa.")
 
     if st.button("⬅️ VOLVER AL INICIO"): st.session_state.view = 'home'; st.session_state.c_tab = 'none'; st.rerun()
