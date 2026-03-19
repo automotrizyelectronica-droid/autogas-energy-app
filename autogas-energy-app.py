@@ -144,75 +144,71 @@ def get_data():
     df.columns = [c.lower().strip() for c in df.columns]
     return df
 
-# --- 5. VISTA: HOME (CENTRADO HTML ABSOLUTO) ---
+# --- 5. VISTA: HOME (DISEÑO LIMPIO Y CENTRADO) ---
 if st.session_state.view == 'home':
-    # 1. Logo Centrado (HTML)
+    # 1. Logo Centrado
     st.markdown(
         f"""
-        <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 20px;">
             <img src="https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png" width="200">
         </div>
         """,
         unsafe_allow_html=True
     )
     
-    # 2. Título Centrado (HTML)
-    st.markdown("""
-        <div style="text-align: center; background: rgba(255, 255, 255, 0.05); border-radius: 20px; padding: 20px; border: 1px solid rgba(255, 255, 255, 0.1);">
-            <h1 style="color: #00c6ff; margin: 0;">Av. Canto Grande 2916 SJL</h1>
-            <br>
-            <div style="display: flex; justify-content: center; align-items: center; width: 100%; height: 200px;">
-    """, unsafe_allow_html=True)
+    # 2. Título (Rectángulo pequeño y centrado)
+    st.markdown('<div class="main-card"><h1 style="text-align: center; margin:0;">Av. Canto Grande 2916 SJL</h1></div>', unsafe_allow_html=True)
+    
+    # 3. Espacio Estético
+    st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. EL BOTÓN (Lo ponemos dentro del DIV centrado de arriba)
-    # Reducimos un poco el alto (6em) para que no sea "exagerado" pero sí dominante
+    # 4. BOTÓN CLIENTE (Fuera del rectángulo, centrado absoluto)
     st.markdown("""
         <style>
-            div.stButton > button:first-child {
-                height: 6em !important;
-                width: 280px !important; /* Ancho fijo para que no se mueva */
+            /* Estilo específico para el botón de cliente */
+            .div-cliente button {
+                height: 5.5em !important;
+                width: 300px !important;
                 font-size: 22px !important;
                 background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
                 border-radius: 20px !important;
                 box-shadow: 0 8px 20px rgba(0,114,255,0.3) !important;
-                border: none !important;
-                color: white !important;
                 display: block !important;
                 margin: 0 auto !important;
             }
         </style>
     """, unsafe_allow_html=True)
 
+    st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
     if st.button("👤 CONSULTAR MI VEHÍCULO"): 
         st.session_state.view = 'cliente'
         st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('</div></div>', unsafe_allow_html=True) # Cerramos la tarjeta
+    # 5. ESPACIO PARA OCULTAR EL MODO ADMIN (Scroll)
+    st.markdown("<br>" * 18, unsafe_allow_html=True) 
 
-    # 4. ESPACIO PARA FORZAR EL SCROLL (BAJAR LA PANTALLA)
-    # Ponemos 20 espacios para que el técnico tenga que bajar bastante
-    st.markdown("<br>" * 20, unsafe_allow_html=True) 
-
-    # 5. BOTÓN ADMINISTRADOR (Pequeño y al final)
+    # 6. BOTÓN ADMINISTRADOR (Discreto al final)
     st.markdown("""
-        <div style="display: flex; justify-content: center; width: 100%;">
-            <style>
-                .btn-admin-final button {
-                    height: 2.2em !important;
-                    width: 150px !important;
-                    font-size: 12px !important;
-                    background: transparent !important;
-                    border: 1px solid rgba(255,255,255,0.1) !important;
-                    color: #555 !important;
-                }
-            </style>
+        <style>
+            .div-admin-final button {
+                height: 2.2em !important;
+                width: 160px !important;
+                font-size: 12px !important;
+                background: transparent !important;
+                border: 1px solid rgba(255,255,255,0.1) !important;
+                color: #555 !important;
+                display: block !important;
+                margin: 0 auto !important;
+            }
+        </style>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="btn-admin-final">', unsafe_allow_html=True)
+    st.markdown('<div class="div-admin-final">', unsafe_allow_html=True)
     if st.button("Acceso Técnico"): 
         st.session_state.view = 'login'
         st.rerun()
-    st.markdown('</div></div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
   
 # --- 6. VISTA: LOGIN ---
 elif st.session_state.view == 'login':
