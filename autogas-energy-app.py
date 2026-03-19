@@ -282,10 +282,10 @@ elif st.session_state.view == 'cliente':
             # --- OPCIÓN 2: MANTENIMIENTO ACTUAL / DETALLE ---
             elif st.session_state.c_tab in ['actual', 'hist']:
                 if st.session_state.c_tab == 'actual':
-                    st.subheader("Mantenimiento Reciente")
+                    st.subheader("Mantenimientos Recientes")
                     servicios = [hist[-1]]
                 else:
-                    st.subheader("Historial de Diagnósticos")
+                    st.subheader("Servicios Realizados")
                     servicios = reversed(hist)
 
                 for r in servicios:
