@@ -113,24 +113,6 @@ st.markdown("""
     .prox-box { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); padding: 40px; border-radius: 25px; text-align: center; color: white; box-shadow: 0 10px 30px rgba(0,198,255,0.3); }
     h1, h2, h3 { color: #00c6ff !important; text-align: center; font-weight: 800; }
     .check-item { background: rgba(0, 198, 255, 0.1); padding: 8px 15px; border-radius: 8px; margin: 5px 0; border-left: 4px solid #00c6ff; }
-    
-      /* Estilo para el Botón de Cliente: Grande y llamativo */
-    .btn-cliente > button {
-        height: 6em !important; /* Más alto */
-        font-size: 22px !important; /* Letra más grande */
-        margin-top: 20px !important;
-    }
-
-    /* Estilo para el Botón de Administrador: Pequeño y muy abajo */
-    .btn-admin > button {
-        height: 2.5em !important; /* Más bajo */
-        font-size: 13px !important; /* Letra más pequeña */
-        background: transparent !important; /* Fondo transparente */
-        border: 1px solid rgba(255, 255, 255, 0.2) !important; /* Borde sutil */
-        color: #888 !important; /* Letra gris */
-        margin-top: 80px !important; /* Empuja el botón hacia abajo */
-        margin-bottom: 0px !important;
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -146,22 +128,13 @@ def get_data():
 
 # --- 5. VISTA: HOME ---
 if st.session_state.view == 'home':
-   # Usamos HTML para forzar el centrado exacto
-    st.markdown(
-        f"""
-        <div style="display: flex; justify-content: center;">
-            <img src="https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png" width="230">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    st.image("https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png", width=230)
     st.markdown('<div class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
     if st.button("👤 MODO CLIENTE"): st.session_state.view = 'cliente'; st.rerun()
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🛠️ MODO ADMINISTRADOR"): st.session_state.view = 'login'; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-  
 # --- 6. VISTA: LOGIN ---
 elif st.session_state.view == 'login':
     st.markdown('<div class="main-card"><h3>ACCESO AUTORIZADO</h3>', unsafe_allow_html=True)
