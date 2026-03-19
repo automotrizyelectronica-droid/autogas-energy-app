@@ -144,69 +144,60 @@ def get_data():
     df.columns = [c.lower().strip() for c in df.columns]
     return df
 
-# --- 5. VISTA: HOME (DISEÑO DE OPCIÓN ÚNICA) ---
+# --- 5. VISTA: HOME (CENTRADO ABSOLUTO Y DESPLAZAMIENTO FORZADO) ---
 if st.session_state.view == 'home':
-    # 1. Logo Centrado (Igual al anterior)
+    # 1. Logo Centrado (HTML Puro)
     st.markdown(
         f"""
-        <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 20px;">
+        <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 10px;">
             <img src="https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png" width="230">
         </div>
         """,
         unsafe_allow_html=True
     )
     
-    # 2. Título del Taller Centrado
+    # 2. Tarjeta Principal con Título
     st.markdown('<div style="text-align: center;" class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
     
-    # --- ESTILOS CSS PARA FORZAR EL CENTRADO ---
+    # --- ESTILOS PARA LOS BOTONES ---
     st.markdown("""
         <style>
-            /* Centrado de bloques internos de Streamlit */
-            .stButton {
-                display: flex;
-                justify-content: center;
-            }
-            
-            /* BOTÓN GIGANTE (CLIENTE) */
-            .div-cliente button {
-                height: 7em !important; /* Super alto */
-                width: 100% !important;
-                max-width: 500px !important; /* Gran tamaño en PC */
-                font-size: 26px !important; /* Letra muy grande */
+            /* Botón GIGANTE de Cliente */
+            div.stButton > button:first-child {
+                height: 8em !important;
+                font-size: 26px !important;
                 background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
                 border-radius: 25px !important;
-                box-shadow: 0 10px 20px rgba(0,114,255,0.4) !important; /* Sombra para que resalte */
-                margin-top: 20px;
+                box-shadow: 0 10px 25px rgba(0,114,255,0.4) !important;
+                width: 100% !important;
             }
-            
-            /* BOTÓN MINIATURA (ADMIN) */
-            .div-admin button {
+            /* Botón MINI de Admin */
+            .btn-admin-oculto button {
                 height: 2em !important;
-                width: 150px !important;
                 font-size: 11px !important;
                 background: transparent !important;
-                border: none !important; /* Sin bordes para que parezca solo texto */
-                color: #444 !important; /* Color muy oscuro/discreto */
-                margin-top: 120px !important; /* Gran espacio de separación */
-                opacity: 0.6;
-            }
-            .div-admin button:hover {
-                color: #888 !important;
-                background: transparent !important;
+                border: none !important;
+                color: #444 !important;
+                opacity: 0.5;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # 3. BOTÓN PRINCIPAL (CLIENTE) - La "Única" Opción
-    st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
-    if st.button("👤 CONSULTAR MI VEHÍCULO"): 
-        st.session_state.view = 'cliente'
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+    # 3. EL TRUCO DE LAS COLUMNAS PARA CENTRAR EL BOTÓN GRANDE
+    # Creamos 3 columnas. La del centro (col_center) es la que manda.
+    col_left, col_center, col_right = st.columns([0.1, 0.8, 0.1])
+    
+    with col_center:
+        if st.button("👤 CONSULTAR MI VEHÍCULO"): 
+            st.session_state.view = 'cliente'
+            st.rerun()
 
-    # 4. BOTÓN SECUNDARIO (ADMIN) - Casi invisible
-    st.markdown('<div class="div-admin">', unsafe_allow_html=True)
+    # 4. FORZAR EL SCROLL (BAJAR LA PANTALLA)
+    # Metemos muchos espacios para que el botón de admin quede "escondido" abajo
+    st.markdown("<br>" * 15, unsafe_allow_html=True) 
+
+    # 5. BOTÓN ADMIN (Al final de todo)
+    st.markdown('<div class="btn-admin-oculto">', unsafe_allow_html=True)
     if st.button("Acceso Técnico"): 
         st.session_state.view = 'login'
         st.rerun()
