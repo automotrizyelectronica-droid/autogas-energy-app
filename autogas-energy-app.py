@@ -144,66 +144,58 @@ def get_data():
     df.columns = [c.lower().strip() for c in df.columns]
     return df
 
-# --- 5. VISTA: HOME (DISEÑO MÓVIL Y PC CENTRADO) ---
+# --- 5. VISTA: HOME (CENTRADO TOTAL FORZADO) ---
 if st.session_state.view == 'home':
     # Logo Centrado
     st.markdown(
         f"""
-        <div style="display: flex; justify-content: center; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 20px;">
             <img src="https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png" width="230">
         </div>
         """,
         unsafe_allow_html=True
     )
     
-    # Tarjeta Principal con Título
-    st.markdown('<div class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
+    # Tarjeta Principal
+    st.markdown('<div class="main-card"><h1 style="text-align: center;">Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
     
-    # ESPACIO SUPERIOR
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # 1. BOTÓN CLIENTE: Gigante y Centrado (CSS Inline para asegurar el centro)
+    # --- BOTÓN CLIENTE: CENTRADO Y GRANDE ---
+    # Creamos un contenedor que ocupe el 100% y centre el contenido
     st.markdown("""
         <style>
-            .div-cliente {
-                display: flex;
-                justify-content: center;
-                margin-bottom: 50px;
+            .stButton > button {
+                display: block !important;
+                margin: 0 auto !important; /* Centrado horizontal */
             }
             .div-cliente button {
-                height: 5em !important;
-                width: 100% !important;
-                font-size: 22px !important;
+                height: 5.5em !important;
+                width: 90% !important; /* Casi todo el ancho para que se vea grande en el cel */
+                max-width: 450px !important; /* Para que no sea infinito en PC */
+                font-size: 24px !important;
                 background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
+                border-radius: 20px !important;
+            }
+            .div-admin button {
+                height: 2.5em !important;
+                width: 50% !important;
+                max-width: 200px !important;
+                font-size: 13px !important;
+                background: transparent !important;
+                border: 1px solid rgba(255,255,255,0.2) !important;
+                color: #777 !important;
+                margin-top: 100px !important; /* Mucho espacio hacia abajo */
             }
         </style>
     """, unsafe_allow_html=True)
-    
+
+    # Render del Botón Cliente
     st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
     if st.button("👤 CONSULTAR MI VEHÍCULO"): 
         st.session_state.view = 'cliente'
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 2. BOTÓN ADMINISTRADOR: Pequeño, abajo y discreto
-    st.markdown("""
-        <style>
-            .div-admin {
-                display: flex;
-                justify-content: center;
-                margin-top: 60px;
-            }
-            .div-admin button {
-                height: 2.2em !important;
-                width: 60% !important;
-                font-size: 12px !important;
-                background: transparent !important;
-                border: 1px solid rgba(255,255,255,0.2) !important;
-                color: #777 !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
+    # Render del Botón Admin (Acceso Técnico)
     st.markdown('<div class="div-admin">', unsafe_allow_html=True)
     if st.button("🛠️ Acceso Técnico"): 
         st.session_state.view = 'login'
