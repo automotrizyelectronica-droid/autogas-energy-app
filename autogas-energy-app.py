@@ -279,7 +279,7 @@ elif st.session_state.view == 'cliente':
                     </div>
                 """, unsafe_allow_html=True)
             
-            # --- OPCIÓN 2: MANTENIMIENTO ACTUAL / DETALLE ---
+            # --- OPCIÓN 2: MANTENIMIENTO REALIZADO / DETALLE ---
             elif st.session_state.c_tab in ['actual', 'hist']:
                 if st.session_state.c_tab == 'actual':
                     st.subheader("Mantenimientos Recientes")
