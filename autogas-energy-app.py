@@ -161,28 +161,6 @@ if st.session_state.view == 'home':
     if st.button("🛠️ MODO ADMINISTRADOR"): st.session_state.view = 'login'; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-
-    # 6. BOTÓN ADMINISTRADOR (Casi invisible, al fondo)
-    st.markdown("""
-        <style>
-            .div-admin-final button {
-                height: 2.2em !important;
-                width: 160px !important;
-                font-size: 12px !important;
-                background: transparent !important;
-                border: 1px solid rgba(255,255,255,0.1) !important;
-                color: #555 !important;
-                display: block !important;
-                margin: 0 auto !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="div-admin-final">', unsafe_allow_html=True)
-    if st.button("Acceso Técnico"): 
-        st.session_state.view = 'login'
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
   
 # --- 6. VISTA: LOGIN ---
 elif st.session_state.view == 'login':
