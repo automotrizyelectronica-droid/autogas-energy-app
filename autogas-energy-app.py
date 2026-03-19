@@ -144,51 +144,23 @@ def get_data():
     df.columns = [c.lower().strip() for c in df.columns]
     return df
 
-# --- 5. VISTA: HOME (DISEÑO FINAL: FOCO EN CLIENTE) ---
+# --- 5. VISTA: HOME ---
 if st.session_state.view == 'home':
-    # 1. Logo Centrado
+   # Usamos HTML para forzar el centrado exacto
     st.markdown(
         f"""
-        <div style="display: flex; justify-content: center; width: 100%; margin-bottom: 20px;">
-            <img src="https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png" width="200">
+        <div style="display: flex; justify-content: center;">
+            <img src="https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png" width="230">
         </div>
         """,
         unsafe_allow_html=True
     )
-    
-    # 2. Título (Rectángulo pequeño y centrado)
-    st.markdown('<div class="main-card"><h1 style="text-align: center; margin:0; font-size: 22px;">Av. Canto Grande 2916 SJL</h1></div>', unsafe_allow_html=True)
-    
-    # 3. Espacio entre título y botón
+    st.markdown('<div class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
+    if st.button("👤 MODO CLIENTE"): st.session_state.view = 'cliente'; st.rerun()
     st.markdown("<br>", unsafe_allow_html=True)
-
-    # 4. BOTÓN CLIENTE (Dominante y centrado)
-    st.markdown("""
-        <style>
-            .div-cliente button {
-                height: 6em !important;
-                width: 320px !important;
-                font-size: 22px !important;
-                background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
-                border-radius: 20px !important;
-                box-shadow: 0 10px 25px rgba(0,114,255,0.4) !important;
-                display: block !important;
-                margin: 0 auto !important;
-                color: white !important;
-                border: none !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
-    if st.button("👤 CONSULTAR MI VEHÍCULO"): 
-        st.session_state.view = 'cliente'
-        st.rerun()
+    if st.button("🛠️ MODO ADMINISTRADOR"): st.session_state.view = 'login'; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 5. EL "MURO" DE ESPACIO (Para esconder el acceso técnico)
-    # 20 saltos de línea obligan a bajar la pantalla en el móvil
-    st.markdown("<br>" * 20, unsafe_allow_html=True) 
 
     # 6. BOTÓN ADMINISTRADOR (Casi invisible, al fondo)
     st.markdown("""
