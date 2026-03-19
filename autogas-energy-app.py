@@ -137,11 +137,61 @@ if st.session_state.view == 'home':
         """,
         unsafe_allow_html=True
     )
-    st.markdown('<div class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
-    if st.button("👤 MODO CLIENTE"): st.session_state.view = 'cliente'; st.rerun()
+    # 2. Título (Rectángulo pequeño y centrado)
+    st.markdown('<div class="main-card"><h1 style="text-align: center; margin:0; font-size: 22px;">Av. Canto Grande 2916 SJL</h1></div>', unsafe_allow_html=True)
+    
+    # 3. Espacio entre título y botón
     st.markdown("<br>", unsafe_allow_html=True)
-    if st.button("🛠️ MODO ADMINISTRADOR"): st.session_state.view = 'login'; st.rerun()
+
+    # 4. BOTÓN CLIENTE (Dominante y centrado)
+    st.markdown("""
+        <style>
+            .div-cliente button {
+                height: 6em !important;
+                width: 320px !important;
+                font-size: 22px !important;
+                background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
+                border-radius: 20px !important;
+                box-shadow: 0 10px 25px rgba(0,114,255,0.4) !important;
+                display: block !important;
+                margin: 0 auto !important;
+                color: white !important;
+                border: none !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
+    if st.button("👤 CONSULTAR MI VEHÍCULO"): 
+        st.session_state.view = 'cliente'
+        st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
+    # 5. EL "MURO" DE ESPACIO (Para esconder el acceso técnico)
+    # 10 saltos de línea obligan a bajar la pantalla en el móvil
+    st.markdown("<br>" * 10, unsafe_allow_html=True) 
+    # 6. BOTÓN ADMINISTRADOR (Casi invisible, al fondo)
+    st.markdown("""
+        <style>
+            .div-admin-final button {
+                height: 2.2em !important;
+                width: 160px !important;
+                font-size: 12px !important;
+                background: transparent !important;
+                border: 1px solid rgba(255,255,255,0.1) !important;
+                color: #555 !important;
+                display: block !important;
+                margin: 0 auto !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="div-admin-final">', unsafe_allow_html=True)
+    if st.button("Acceso Técnico"): 
+        st.session_state.view = 'login'
+        st.rerun()
+    st.markdown('</div>', unsafe_allow_html=True)
+
 
 # --- 6. VISTA: LOGIN ---
 elif st.session_state.view == 'login':
