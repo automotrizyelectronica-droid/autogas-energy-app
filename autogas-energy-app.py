@@ -259,11 +259,12 @@ elif st.session_state.view == 'cliente':
     # Campo de texto para la placa
     placa_input = st.text_input("INGRESE SU PLACA PARA CONSULTAR").upper().strip()
     
-    # NUEVO: Botón de búsqueda para evitar presionar Enter
-    btn_buscar = st.button("🔍 BUSCAR VEHÍCULO")
-    
-    # La lógica ahora se activa con el botón O si ya hay una placa buscada
-    if btn_buscar or (placa_input and st.session_state.c_tab != 'none'):
+    # Botón de búsqueda que guarda el estado
+    if st.button("🔍 BUSCAR VEHÍCULO"):
+        st.session_state.busqueda_activa = True
+
+    # Solo mostramos el contenido si la búsqueda está activa y hay una placa escrita
+    if st.session_state.get('busqueda_activa') and placa_input:
         df = get_data()
         hist = df[df['placa'].astype(str) == placa_input].to_dict('records')
         
