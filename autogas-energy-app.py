@@ -32,7 +32,7 @@ def generar_pdf(registro, tareas):
     
     # 1. ENCABEZADO Y LOGO
     try:
-        logo_url = "https://i.postimg.cc/mD3mzc9v/logo-autogas.png"
+        logo_url = "https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png"
         response = requests.get(logo_url)
         logo_data = BytesIO(response.content)
         pdf.image(logo_data, x=10, y=8, w=40)
@@ -128,8 +128,8 @@ def get_data():
 
 # --- 5. VISTA: HOME ---
 if st.session_state.view == 'home':
-    st.image("https://i.postimg.cc/mD3mzc9v/logo-autogas.png", width=230)
-    st.markdown('<div class="main-card"><h1>CENTRO DE SERVICIOS</h1>', unsafe_allow_html=True)
+    st.image("https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png", width=230)
+    st.markdown('<div class="main-card"><h1>AUTOGAS ENERGY</h1>', unsafe_allow_html=True)
     if st.button("👤 MODO CLIENTE"): st.session_state.view = 'cliente'; st.rerun()
     st.markdown("<br>", unsafe_allow_html=True)
     if st.button("🛠️ MODO ADMINISTRADOR"): st.session_state.view = 'login'; st.rerun()
