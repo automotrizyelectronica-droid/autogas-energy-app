@@ -128,7 +128,10 @@ def get_data():
 
 # --- 5. VISTA: HOME ---
 if st.session_state.view == 'home':
-    st.image("https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png", width=230)
+    # Creamos 3 columnas para centrar el logo en la del medio
+    col1, col2, col3 = st.columns([1, 2, 1]) 
+    with col2: # Usamos la columna del centro
+        st.image("https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png", width=230)
     st.markdown('<div class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
     if st.button("👤 MODO CLIENTE"): st.session_state.view = 'cliente'; st.rerun()
     st.markdown("<br>", unsafe_allow_html=True)
