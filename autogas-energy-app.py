@@ -113,17 +113,6 @@ st.markdown("""
     .prox-box { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); padding: 40px; border-radius: 25px; text-align: center; color: white; box-shadow: 0 10px 30px rgba(0,198,255,0.3); }
     h1, h2, h3 { color: #00c6ff !important; text-align: center; font-weight: 800; }
     .check-item { background: rgba(0, 198, 255, 0.1); padding: 8px 15px; border-radius: 8px; margin: 5px 0; border-left: 4px solid #00c6ff; }
-    /* Estilo para botones de Volver/Atrás */
-    .btn-volver > button {
-        background: linear-gradient(90deg, #444 0%, #222 100%) !important; /* Gris oscuro */
-        border: 1px solid rgba(255,255,255,0.2) !important;
-        height: 3em !important;
-        font-size: 14px !important;
-        margin-top: 20px !important;
-    }
-    .btn-volver > button:hover {
-        background: #555 !important; /* Un poco más claro al pasar el mouse */
-    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -212,11 +201,7 @@ elif st.session_state.view == 'login':
     if st.button("ENTRAR"):
         if u == "percy" and p == "autogas2026": 
             st.session_state.view = 'admin'; st.rerun()
-    # Cambia el botón de VOLVER por este:
-    st.markdown('<div class="btn-volver">', unsafe_allow_html=True)
-    if st.button("⬅️ VOLVER"): 
-        st.session_state.view = 'home'
-        st.rerun()
+    if st.button("VOLVER"): st.session_state.view = 'home'; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 7. VISTA: ADMINISTRADOR ---
@@ -268,7 +253,6 @@ elif st.session_state.view == 'admin':
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 8. VISTA: CLIENTE (CON BOTÓN DE BÚSQUEDA) ---
-# --- 8. VISTA: CLIENTE (CORREGIDO) ---
 elif st.session_state.view == 'cliente':
     st.markdown('<div class="main-card">', unsafe_allow_html=True)
     
@@ -305,7 +289,7 @@ elif st.session_state.view == 'cliente':
             # --- OPCIÓN 2: MANTENIMIENTO REALIZADO ---
             elif st.session_state.c_tab == 'actual':
                 st.subheader("Mantenimientos Recientes")
-                servicios = [hist[-1]]
+                servicios = [hist[-1]] # Solo el último
                 for r in servicios:
                     with st.expander(f"📅 {r['fecha']} | 📍 {r['km']} KM"):
                         st.markdown(f"### Trabajo Realizado: **{r['paquete']}**")
@@ -317,24 +301,17 @@ elif st.session_state.view == 'cliente':
                         st.write(f"**Observaciones:** {r.get('notas', r.get('observaciones', 'Sin observaciones'))}")
                         links = str(r.get('links_fotos','')).split(",")
                         if links and links[0] != "":
+                            st.write("**Evidencia Visual:**")
                             for url in links:
                                 if "http" in url: st.image(url, use_container_width=True)
                         pdf_data = generar_pdf(r, tareas_lista)
-                        st.download_button(label="📥 Reporte PDF", data=pdf_data, file_name=f"Reporte_{r['placa']}.pdf", mime="application/pdf", key=f"btn_{r['km']}")
+                        st.download_button(label="📥 Descargar Reporte PDF", data=pdf_data, file_name=f"Reporte_{r['placa']}.pdf", mime="application/pdf", key=f"btn_{r['km']}")
 
-            # --- OPCIÓN 3: OTROS SERVICIOS ---
+            # --- OPCIÓN 3: OTROS SERVICIOS (BLOQUEADO) ---
             elif st.session_state.c_tab == 'hist':
                 st.markdown("<br>", unsafe_allow_html=True)
-                st.info("🔧 **Próximamente:** Aquí podrás visualizar tus diagnósticos y otros servicios adicionales.")
-        else:
-            st.warning("No se encontró historial para esta placa.")
+                st.info("🔧 **Próximamente:** Aquí podrás visualizar tus diagnósticos y otros servicios adicionales. Por ahora, esta sección se encuentra en mantenimiento.")
+        else: st.warning("No se encontró historial para esta placa.")
 
-    # --- BOTÓN VOLVER (SANGRE CORREGIDA) ---
-    st.markdown('<div class="btn-volver">', unsafe_allow_html=True)
-    if st.button("⬅️ VOLVER AL INICIO"): 
-        st.session_state.view = 'home'
-        st.session_state.c_tab = 'none'
-        st.session_state.busqueda_activa = False
-        st.rerun()
+    if st.button("⬅️ VOLVER AL INICIO"): st.session_state.view = 'home'; st.session_state.c_tab = 'none'; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True) # Cierra el main-card
