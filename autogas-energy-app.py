@@ -252,14 +252,20 @@ elif st.session_state.view == 'admin':
                 st.success("¡Servicio Guardado con Éxito!"); st.session_state.view = 'home'; st.session_state.step_admin = 1; st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 8. VISTA: CLIENTE ---
+# --- 8. VISTA: CLIENTE (CON BOTÓN DE BÚSQUEDA) ---
 elif st.session_state.view == 'cliente':
     st.markdown('<div class="main-card">', unsafe_allow_html=True)
-    placa_c = st.text_input("INGRESE SU PLACA PARA CONSULTAR").upper().strip()
     
-    if placa_c:
+    # Campo de texto para la placa
+    placa_input = st.text_input("INGRESE SU PLACA PARA CONSULTAR").upper().strip()
+    
+    # NUEVO: Botón de búsqueda para evitar presionar Enter
+    btn_buscar = st.button("🔍 BUSCAR VEHÍCULO")
+    
+    # La lógica ahora se activa con el botón O si ya hay una placa buscada
+    if btn_buscar or (placa_input and st.session_state.c_tab != 'none'):
         df = get_data()
-        hist = df[df['placa'].astype(str) == placa_c].to_dict('records')
+        hist = df[df['placa'].astype(str) == placa_input].to_dict('records')
         
         if hist:
             st.write("---")
