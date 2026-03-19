@@ -144,9 +144,9 @@ def get_data():
     df.columns = [c.lower().strip() for c in df.columns]
     return df
 
-# --- 5. VISTA: HOME (CENTRADO TOTAL FORZADO) ---
+# --- 5. VISTA: HOME (MÉTODO DE CENTRADO GARANTIZADO) ---
 if st.session_state.view == 'home':
-    # Logo Centrado
+    # 1. Logo Centrado (Este ya funciona)
     st.markdown(
         f"""
         <div style="display: flex; justify-content: center; align-items: center; width: 100%; margin-bottom: 20px;">
@@ -156,54 +156,59 @@ if st.session_state.view == 'home':
         unsafe_allow_html=True
     )
     
-    # Tarjeta Principal
-    st.markdown('<div class="main-card"><h1 style="text-align: center;">Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
+    # 2. Título Centrado
+    st.markdown('<div style="text-align: center;" class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
     
-    # --- BOTÓN CLIENTE: CENTRADO Y GRANDE ---
-    # Creamos un contenedor que ocupe el 100% y centre el contenido
+    # --- ESTILOS PARA LOS BOTONES ---
     st.markdown("""
         <style>
-            .stButton > button {
-                display: block !important;
-                margin: 0 auto !important; /* Centrado horizontal */
+            /* Forzamos a que el contenedor de botones de Streamlit no tenga margen izquierdo */
+            [data-testid="stVerticalBlock"] > div {
+                flex-direction: column;
+                align-items: center;
             }
+            
+            /* Botón Grande (Cliente) */
             .div-cliente button {
                 height: 5.5em !important;
-                width: 90% !important; /* Casi todo el ancho para que se vea grande en el cel */
-                max-width: 450px !important; /* Para que no sea infinito en PC */
-                font-size: 24px !important;
+                width: 300px !important; /* Ancho fijo para asegurar el centro */
+                font-size: 20px !important;
                 background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
                 border-radius: 20px !important;
+                display: block;
+                margin: 0 auto;
             }
+            
+            /* Botón Pequeño (Admin) */
             .div-admin button {
                 height: 2.5em !important;
-                width: 50% !important;
-                max-width: 200px !important;
+                width: 180px !important;
                 font-size: 13px !important;
                 background: transparent !important;
                 border: 1px solid rgba(255,255,255,0.2) !important;
                 color: #777 !important;
-                margin-top: 100px !important; /* Mucho espacio hacia abajo */
+                display: block;
+                margin: 100px auto 0 auto; /* 100px de espacio arriba y centrado */
             }
         </style>
     """, unsafe_allow_html=True)
 
-    # Render del Botón Cliente
-    st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
+    # 3. Botón Cliente envuelto en un DIV centrado
+    st.markdown('<div class="div-cliente" style="display: flex; justify-content: center; width: 100%;">', unsafe_allow_html=True)
     if st.button("👤 CONSULTAR MI VEHÍCULO"): 
         st.session_state.view = 'cliente'
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # Render del Botón Admin (Acceso Técnico)
-    st.markdown('<div class="div-admin">', unsafe_allow_html=True)
+    # 4. Botón Admin envuelto en un DIV centrado
+    st.markdown('<div class="div-admin" style="display: flex; justify-content: center; width: 100%;">', unsafe_allow_html=True)
     if st.button("🛠️ Acceso Técnico"): 
         st.session_state.view = 'login'
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
     
     st.markdown('</div>', unsafe_allow_html=True)
-
+  
 # --- 6. VISTA: LOGIN ---
 elif st.session_state.view == 'login':
     st.markdown('<div class="main-card"><h3>ACCESO AUTORIZADO</h3>', unsafe_allow_html=True)
