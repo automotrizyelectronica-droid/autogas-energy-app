@@ -144,32 +144,67 @@ def get_data():
     df.columns = [c.lower().strip() for c in df.columns]
     return df
 
-# --- 5. VISTA: HOME (DISEÑO MEJORADO) ---
+# --- 5. VISTA: HOME (DISEÑO MÓVIL Y PC CENTRADO) ---
 if st.session_state.view == 'home':
     # Logo Centrado
     st.markdown(
         f"""
-        <div style="display: flex; justify-content: center;">
+        <div style="display: flex; justify-content: center; margin-bottom: 10px;">
             <img src="https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png" width="230">
         </div>
         """,
         unsafe_allow_html=True
     )
     
-    # Tarjeta Principal
+    # Tarjeta Principal con Título
     st.markdown('<div class="main-card"><h1>Av. Canto Grande 2916 SJL</h1>', unsafe_allow_html=True)
     
-    # --- BOTÓN CLIENTE (GRANDE) ---
-    st.markdown('<div class="btn-cliente">', unsafe_allow_html=True)
+    # ESPACIO SUPERIOR
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # 1. BOTÓN CLIENTE: Gigante y Centrado (CSS Inline para asegurar el centro)
+    st.markdown("""
+        <style>
+            .div-cliente {
+                display: flex;
+                justify-content: center;
+                margin-bottom: 50px;
+            }
+            .div-cliente button {
+                height: 5em !important;
+                width: 100% !important;
+                font-size: 22px !important;
+                background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
     if st.button("👤 CONSULTAR MI VEHÍCULO"): 
         st.session_state.view = 'cliente'
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # --- BOTÓN ADMINISTRADOR (PEQUEÑO Y ABAJO) ---
-    # Usamos un poco de espacio extra
-    st.markdown("<br><br>", unsafe_allow_html=True) 
-    st.markdown('<div class="btn-admin">', unsafe_allow_html=True)
+    # 2. BOTÓN ADMINISTRADOR: Pequeño, abajo y discreto
+    st.markdown("""
+        <style>
+            .div-admin {
+                display: flex;
+                justify-content: center;
+                margin-top: 60px;
+            }
+            .div-admin button {
+                height: 2.2em !important;
+                width: 60% !important;
+                font-size: 12px !important;
+                background: transparent !important;
+                border: 1px solid rgba(255,255,255,0.2) !important;
+                color: #777 !important;
+            }
+        </style>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<div class="div-admin">', unsafe_allow_html=True)
     if st.button("🛠️ Acceso Técnico"): 
         st.session_state.view = 'login'
         st.rerun()
