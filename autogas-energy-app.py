@@ -144,7 +144,7 @@ def get_data():
     df.columns = [c.lower().strip() for c in df.columns]
     return df
 
-# --- 5. VISTA: HOME (DISEÑO LIMPIO Y CENTRADO) ---
+# --- 5. VISTA: HOME (DISEÑO FINAL: FOCO EN CLIENTE) ---
 if st.session_state.view == 'home':
     # 1. Logo Centrado
     st.markdown(
@@ -157,24 +157,25 @@ if st.session_state.view == 'home':
     )
     
     # 2. Título (Rectángulo pequeño y centrado)
-    st.markdown('<div class="main-card"><h1 style="text-align: center; margin:0;">Av. Canto Grande 2916 SJL</h1></div>', unsafe_allow_html=True)
+    st.markdown('<div class="main-card"><h1 style="text-align: center; margin:0; font-size: 22px;">Av. Canto Grande 2916 SJL</h1></div>', unsafe_allow_html=True)
     
-    # 3. Espacio Estético
+    # 3. Espacio entre título y botón
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 4. BOTÓN CLIENTE (Fuera del rectángulo, centrado absoluto)
+    # 4. BOTÓN CLIENTE (Dominante y centrado)
     st.markdown("""
         <style>
-            /* Estilo específico para el botón de cliente */
             .div-cliente button {
-                height: 5.5em !important;
-                width: 300px !important;
+                height: 6em !important;
+                width: 320px !important;
                 font-size: 22px !important;
                 background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
                 border-radius: 20px !important;
-                box-shadow: 0 8px 20px rgba(0,114,255,0.3) !important;
+                box-shadow: 0 10px 25px rgba(0,114,255,0.4) !important;
                 display: block !important;
                 margin: 0 auto !important;
+                color: white !important;
+                border: none !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -185,10 +186,11 @@ if st.session_state.view == 'home':
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # 5. ESPACIO PARA OCULTAR EL MODO ADMIN (Scroll)
-    st.markdown("<br>" * 18, unsafe_allow_html=True) 
+    # 5. EL "MURO" DE ESPACIO (Para esconder el acceso técnico)
+    # 20 saltos de línea obligan a bajar la pantalla en el móvil
+    st.markdown("<br>" * 20, unsafe_allow_html=True) 
 
-    # 6. BOTÓN ADMINISTRADOR (Discreto al final)
+    # 6. BOTÓN ADMINISTRADOR (Casi invisible, al fondo)
     st.markdown("""
         <style>
             .div-admin-final button {
