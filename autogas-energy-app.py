@@ -218,7 +218,8 @@ elif st.session_state.view == 'admin':
                 last = match.iloc[-1]
                 st.session_state.form.update({"marca": last.get('marca',''), "modelo": last.get('modelo',''), "año": last.get('año','')})
                 st.session_state.step_admin = 2
-            else: st.session_state.step_admin = 1.5
+            else: 
+                st.session_state.step_admin = 1.5
             st.rerun()
 
     elif st.session_state.step_admin == 1.5:
@@ -226,50 +227,52 @@ elif st.session_state.view == 'admin':
         st.session_state.form["marca"] = st.text_input("Marca")
         st.session_state.form["modelo"] = st.text_input("Modelo")
         st.session_state.form["año"] = st.text_input("Año")
-        if st.button("REGISTRAR Y SEGUIR"): st.session_state.step_admin = 2; st.rerun()
+        if st.button("REGISTRAR Y SEGUIR"): 
+            st.session_state.step_admin = 2
+            st.rerun()
 
     elif st.session_state.step_admin == 2:
         st.write(f"**Auto:** {st.session_state.form['placa']} | {st.session_state.form['marca']}")
         st.session_state.form["paquete"] = st.selectbox("Seleccione el Paquete Realizado", list(PAQUETES.keys()))
         st.session_state.form["km"] = st.number_input("Kilometraje Actual", min_value=0)
-        if st.button("IR A DETALLES Y FOTOS ➡️"): st.session_state.step_admin = 3; st.rerun()
-
- elif st.session_state.step_admin == 3:
-      paq_sel = st.session_state.form["paquete"]
-      st.subheader(f"📋 Checklist: {paq_sel}")
-      
-      for item in PAQUETES[paq_sel]:
-        st.checkbox(item, value=True, key=f"check_{item}")
-          
-      st.write("---")
-      st.session_state.form["obs"] = st.text_area("Cuadro de Observaciones del Técnico")
-      
-      # CAMBIO AQUÍ: type=["jpg", "png", "jpeg"] ayuda a que el móvil entienda mejor
-      fotos = st.file_uploader("Subir fotos (Seleccionar de galería)", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
-      
-      if st.button("✅ FINALIZAR Y GUARDAR"):
-        with st.spinner("Guardando en la nube..."):
-          try:
-            urls = []
-            if fotos:
-              for f in fotos:
-                # Usamos f directamente en lugar de f.getvalue() para mayor compatibilidad
-                res = cloudinary.uploader.upload(f, folder=f"Autogas_{st.session_state.form['placa']}")
-                urls.append(res['secure_url'])
-            
-            f = st.session_state.form
-            # Intentamos escribir
-            db.append_row([
-                datetime.now().strftime("%d/%m/%Y"), 
-                f['placa'], f['marca'], f['modelo'], f['año'], 
-                str(f['km']), f['paquete'], "Completado", f['obs'], ",".join(urls)
-            ])
-            st.success("¡Guardado correctamente!")
-            st.session_state.step_admin = 1
+        if st.button("IR A DETALLES Y FOTOS ➡️"): 
+            st.session_state.step_admin = 3
             st.rerun()
-          except Exception as e:
-            st.error(f"Error técnico: {e}")
-            st.info("Si el error es 403, por favor verifica nuevamente los permisos de la Hoja de Cálculo.")
+
+    elif st.session_state.step_admin == 3:
+        paq_sel = st.session_state.form["paquete"]
+        st.subheader(f"📋 Checklist: {paq_sel}")
+        
+        for item in PAQUETES[paq_sel]:
+            st.checkbox(item, value=True, key=f"check_{item}")
+            
+        st.write("---")
+        st.session_state.form["obs"] = st.text_area("Cuadro de Observaciones del Técnico")
+        fotos = st.file_uploader("Subir fotos (Seleccionar de galería)", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
+        
+        if st.button("✅ FINALIZAR Y GUARDAR"):
+            with st.spinner("Guardando en la nube..."):
+                try:
+                    urls = []
+                    if fotos:
+                        for f in fotos:
+                            res = cloudinary.uploader.upload(f, folder=f"Autogas_{st.session_state.form['placa']}")
+                            urls.append(res['secure_url'])
+                    
+                    f = st.session_state.form
+                    db.append_row([
+                        datetime.now().strftime("%d/%m/%Y"), 
+                        f['placa'], f['marca'], f['modelo'], f['año'], 
+                        str(f['km']), f['paquete'], "Completado", f['obs'], ",".join(urls)
+                    ])
+                    st.success("¡Guardado correctamente!")
+                    st.session_state.view = 'home'
+                    st.session_state.step_admin = 1
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Error técnico: {e}")
+                    st.info("Si el error es 403, verifica los permisos de la Hoja de Cálculo.")
+                    
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 8. VISTA: CLIENTE (CON BOTÓN DE BÚSQUEDA) ---
