@@ -235,21 +235,47 @@ elif st.session_state.view == 'admin':
         if st.button("IR A DETALLES Y FOTOS ➡️"): st.session_state.step_admin = 3; st.rerun()
 
     elif st.session_state.step_admin == 3:
-        paq_sel = st.session_state.form["paquete"]
-        st.subheader(f"📋 Checklist: {paq_sel}")
-        for item in PAQUETES[paq_sel]:
-            st.checkbox(item, value=True, key=f"check_{item}")
-        
-        st.write("---")
-        st.session_state.form["obs"] = st.text_area("Cuadro de Observaciones del Técnico")
-        fotos = st.file_uploader("Evidencia Fotográfica (Cámara/Galería)", accept_multiple_files=True)
-        
-        if st.button("✅ FINALIZAR Y GUARDAR TODO"):
-            with st.spinner("Subiendo datos y fotos..."):
-                urls = [cloudinary.uploader.upload(f.getvalue(), folder=f"Autogas_{st.session_state.form['placa']}")['secure_url'] for f in fotos] if fotos else []
-                f = st.session_state.form
-                db.append_row([datetime.now().strftime("%d/%m/%Y"), f['placa'], f['marca'], f['modelo'], f['año'], f['km'], f['paquete'], "Completado", f['obs'], ",".join(urls)])
-                st.success("¡Servicio Guardado con Éxito!"); st.session_state.view = 'home'; st.session_state.step_admin = 1; st.rerun()
+      paq_sel = st.session_state.form["paquete"]
+      st.subheader(f"📋 Checklist: {paq_sel}")
+      
+      for item in PAQUETES[paq_sel]:
+        st.checkbox(item, value=True, key=f"check_{item}")
+          
+      st.write("---")
+      st.session_state.form["obs"] = st.text_area("Cuadro de Observaciones del Técnico")
+      fotos = st.file_uploader("Evidencia Fotográfica (Cámara/Galería)", accept_multiple_files=True)
+      
+      if st.button("✅ FINALIZAR Y GUARDAR TODO"):
+        try:
+          with st.spinner("Subiendo evidencia a la nube y guardando..."):
+            urls = []
+            if fotos:
+              for f in fotos:
+                upload_result = cloudinary.uploader.upload(f.getvalue(), folder=f"Autogas_{st.session_state.form['placa']}")
+                urls.append(upload_result['secure_url'])
+            
+            f = st.session_state.form
+            db.append_row([
+                datetime.now().strftime("%d/%m/%Y"), 
+                f['placa'], 
+                f['marca'], 
+                f['modelo'], 
+                f['año'], 
+                f['km'], 
+                f['paquete'], 
+                "Completado", 
+                f['obs'], 
+                ",".join(urls)
+            ])
+            
+            st.success("¡Servicio Guardado con Éxito!")
+            st.session_state.view = 'home'
+            st.session_state.step_admin = 1
+            st.session_state.form = {}
+            st.rerun()
+            
+        except Exception as e:
+          st.error(f"Error al guardar: {e}")
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 8. VISTA: CLIENTE (CON BOTÓN DE BÚSQUEDA) ---
