@@ -1,340 +1,149 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
-import gspread
-from google.oauth2.service_account import Credentials
 import cloudinary
 import cloudinary.uploader
-from fpdf import FPDF  # <--- Nueva librería para el PDF
-import requests
-from io import BytesIO
+from supabase import create_client, Client
 
-# --- 1. CONFIGURACIÓN DE NUBE ---
+# --- 1. CONFIGURACIÓN DE CREDENCIALES ---
+# Configura tus secretos en Streamlit Cloud (st.secrets) o ponlos aquí temporalmente
+SUPABASE_URL = "https://cemyzwxswjgkeeoaayfm.supabase.co"
+SUPABASE_KEY = "sb_publishable_XO9ULfAj6gIQg-AWRL0zqg_oIZQm36V"
+
+# Inicializar cliente de Supabase
+@st.cache_resource
+def init_supabase() -> Client:
+    return create_client(SUPABASE_URL, SUPABASE_KEY)
+
+supabase = init_supabase()
+
+# Configurar Cloudinary (asegúrate de tener esto configurado con tus datos)
 cloudinary.config(
-  cloud_name = st.secrets["CLOUDINARY_CLOUD_NAME"],
-  api_key = st.secrets["CLOUDINARY_API_KEY"],
-  api_secret = st.secrets["CLOUDINARY_API_SECRET"],
-  secure = True
+  cloud_name = st.secrets.get("CLOUDINARY_CLOUD_NAME", "tu_cloud_name"),
+  api_key = st.secrets.get("CLOUDINARY_API_KEY", "tu_api_key"),
+  api_secret = st.secrets.get("CLOUDINARY_API_SECRET", "tu_api_secret")
 )
 
-@st.cache_resource
-def init_google():
-    creds = Credentials.from_service_account_info(st.secrets["google_credentials"], 
-            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"])
-    return gspread.authorize(creds).open("DB_Autogas_Energy").sheet1
-
-db = init_google()
-
-# --- FUNCION PARA GENERAR PDF (ESTRUCTURA ORIGINAL QUE FUNCIONABA) ---
-def generar_pdf(registro, tareas):
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # 1. ENCABEZADO Y LOGO
+# --- 2. FUNCIONES DE BASE DE DATOS (PRO) ---
+def get_data():
     try:
-        logo_url = "https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png"
-        response = requests.get(logo_url)
-        logo_data = BytesIO(response.content)
-        pdf.image(logo_data, x=10, y=8, w=40)
-    except:
-        pdf.set_font("Arial", 'B', 16)
-        pdf.text(10, 20, "AUTOGAS ENERGY")
+        response = supabase.table("servicios").select("*").execute()
+        return pd.DataFrame(response.data) if response.data else pd.DataFrame(columns=['placa', 'marca', 'modelo', 'anio', 'km', 'paquete', 'estado', 'observaciones'])
+    except Exception as e:
+        st.error(f"Error al leer la base de datos: {e}")
+        return pd.DataFrame()
 
-    # 2. DATOS DEL TALLER (Añadidos a la derecha)
-    pdf.set_font("Arial", '', 9)
-    pdf.set_xy(140, 8)
-    pdf.multi_cell(60, 4, "AUTOGAS ENERGY\nLima, Perú\nWhatsApp: +51 927 843 738\nDireccion: Av. Canto Grande 2916\nSan Juan de Lurigancho", align='R')
-
-    pdf.ln(15)
-    pdf.set_font("Arial", 'B', 20)
-    pdf.cell(0, 10, "REPORTE DE MANTENIMIENTO", ln=True, align='C')
-    pdf.ln(5)
-
-    # 3. INFORMACIÓN DEL VEHÍCULO
-    pdf.set_font("Arial", 'B', 12)
-    pdf.set_fill_color(240, 240, 240)
-    pdf.cell(0, 10, f" DETALLES DEL VEHÍCULO - PLACA: {registro.get('placa', 'S/N')}", ln=True, fill=True)
-    
-    pdf.set_font("Arial", '', 11)
-    
-    # --- LÓGICA PARA RECUPERAR EL AÑO CORRECTAMENTE ---
-    # Buscamos 'año', 'anio', 'ano' o cualquier columna que contenga esas letras
-    anio_val = registro.get('año', registro.get('anio', registro.get('ano', 'N/A')))
-    if anio_val == 'N/A':
-        for k, v in registro.items():
-            if 'añ' in k.lower() or 'an' in k.lower():
-                anio_val = v
-                break
-
-    pdf.cell(95, 8, f"Fecha: {registro.get('fecha', 'N/A')}", border=1)
-    pdf.cell(95, 8, f"Kilometraje: {registro.get('km', 'N/A')} KM", border=1, ln=True)
-    pdf.cell(63, 8, f"Marca: {registro.get('marca', 'N/A')}", border=1)
-    pdf.cell(63, 8, f"Modelo: {registro.get('modelo', 'N/A')}", border=1)
-    pdf.cell(64, 8, f"Año: {anio_val}", border=1, ln=True)
-    pdf.ln(5)
-
-    # 4. TRABAJOS REALIZADOS
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, f" TRABAJO REALIZADO: {registro.get('paquete', 'Servicio')}", ln=True, fill=True)
-    pdf.set_font("Arial", '', 10)
-    for t in tareas:
-        pdf.cell(0, 7, f" - {t}", ln=True)
-    
-    pdf.ln(5)
-
-    # 5. OBSERVACIONES
-    pdf.set_font("Arial", 'B', 12)
-    pdf.cell(0, 10, " OBSERVACIONES DEL TÉCNICO", ln=True, fill=True)
-    pdf.set_font("Arial", '', 11)
-    obs = registro.get('notas', registro.get('observaciones', 'Sin observaciones'))
-    pdf.multi_cell(0, 8, str(obs))
-
-    # ESTA LÍNEA ES LA QUE TE FUNCIONABA (NO LA CAMBIES)
-    return bytes(pdf.output())
-    
-
-# --- 2. CONTENIDO DE PAQUETES (Checklist) ---
+# --- 3. DICCIONARIO DE PAQUETES ---
 PAQUETES = {
-    "PAQUETE A": ["Cambio de Aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerante y aceite","Scanneo de motor", "Siliconeo de motor"],
-    "PAQUETE B": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Cambio o inspeccion de bujias", "Scanneo de motor", "Siliconeo de motor"],
-    "PAQUETE C": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio de filtro de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Siliconeo de motor"],
-    "PAQUETE D": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio de filtro de gas", "Cambio de filtro de gasolina (externo)", "Limpieza de inyectores gasolina", "Cambio de oring y filtro de inyector", "Limpieza de obturador", "Cambio o inpeccion de bujias", "Limpieza de sensores (maf - map - cmp - ckp - vvt - o2)", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Siliconeo de motor"],
-    "PAQUETE E": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio de filtro de gas", "Limpieza de inyectores de gas", "Cambio de filtro de gasolina (externo)", "Limpieza de inyectores gasolina", "Cambio de oring y filtro de inyector", "Limpieza de obturador", "Cambio o inpeccion de bujias", "Limpieza de sensores  (maf - map - cmp - ckp - vvt - o2)", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "siliconeo de motor"],
-    "PAQUETE F": ["Cambio de aceite", "Cambio de filtro de aire", "Cambio de filtro de aceite", "Cambio o inpeccion de bujias", "Mantenimiento de reductor de gas", "Inspeccion de fugas de gas", "Inspeccion de fugas de refrigerate y aceite", "Scanneo de motor", "Regulacion / Calibracion de gas", "Siliconeo de motor"]
+    "Mantenimiento Preventivo GLP/GNV": ["Cambio de filtros", "Calibración de riel", "Inspección de mangueras", "Diagnóstico por scanner"],
+    "Mantenimiento Mayor": ["Cambio de filtros", "Revisión de tanque", "Prueba de hermeticidad", "Mantenimiento de inyectores", "Escaneo completo"]
 }
 
-# --- 3. DISEÑO VISUAL ---
-st.set_page_config(page_title="AUTOGAS ENERGY", layout="centered")
-st.markdown("""
-    <style>
-    .stApp { background-color: #0b0e11; color: #f0f0f0; }
-    .main-card { background: rgba(255, 255, 255, 0.05); border-radius: 20px; padding: 25px; border: 1px solid rgba(255, 255, 255, 0.1); margin-bottom: 20px; }
-    .stButton>button { width: 100%; border-radius: 12px; height: 3.5em; background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important; color: white !important; font-weight: bold; border: none; }
-    .prox-box { background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%); padding: 40px; border-radius: 25px; text-align: center; color: white; box-shadow: 0 10px 30px rgba(0,198,255,0.3); }
-    h1, h2, h3 { color: #00c6ff !important; text-align: center; font-weight: 800; }
-    .check-item { background: rgba(0, 198, 255, 0.1); padding: 8px 15px; border-radius: 8px; margin: 5px 0; border-left: 4px solid #00c6ff; }
-    </style>
-""", unsafe_allow_html=True)
+# --- 4. VISTA: ADMINISTRADOR (FLUJO PRO) ---
+if 'view' not in st.session_state:
+    st.session_state.view = 'admin'
+if 'step_admin' not in st.session_state:
+    st.session_state.step_admin = 1
+if 'form' not in st.session_state:
+    st.session_state.form = {}
 
-# --- 4. LÓGICA DE ESTADO ---
-if 'view' not in st.session_state: st.session_state.view = 'home'
-if 'step_admin' not in st.session_state: st.session_state.step_admin = 1
-if 'c_tab' not in st.session_state: st.session_state.c_tab = 'none'
+st.markdown(f'<div class="main-card"><h2>REGISTRO TÉCNICO - PASO {st.session_state.step_admin}</h2>', unsafe_allow_html=True)
 
-def get_data():
-    df = pd.DataFrame(db.get_all_records())
-    df.columns = [c.lower().strip() for c in df.columns]
-    return df
-
-# --- 5. VISTA: HOME ---
-if st.session_state.view == 'home':
-   # Usamos HTML para forzar el centrado exacto
-    st.markdown(
-        f"""
-        <div style="display: flex; justify-content: center;">
-            <img src="https://res.cloudinary.com/dyatjshrr/image/upload/v1773886682/logo-autogas_xk9fc6.png" width="230">
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
-    # 2. Título (Rectángulo pequeño y centrado)
-    st.markdown('<div class="main-card"><h1 style="text-align: center; margin:0; font-size: 22px;">Av. Canto Grande 2916 SJL</h1></div>', unsafe_allow_html=True)
-    
-    # 3. Espacio entre título y botón
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    # 4. BOTÓN CLIENTE (Dominante y centrado)
-    st.markdown("""
-        <style>
-            .div-cliente button {
-                height: 6em !important;
-                width: 320px !important;
-                font-size: 22px !important;
-                background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%) !important;
-                border-radius: 20px !important;
-                box-shadow: 0 10px 25px rgba(0,114,255,0.4) !important;
-                display: block !important;
-                margin: 0 auto !important;
-                color: white !important;
-                border: none !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="div-cliente">', unsafe_allow_html=True)
-    if st.button("👤 CONSULTAR MI VEHÍCULO"): 
-        st.session_state.view = 'cliente'
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    # 5. EL "MURO" DE ESPACIO (Para esconder el acceso técnico)
-    # 10 saltos de línea obligan a bajar la pantalla en el móvil
-    st.markdown("<br>" * 10, unsafe_allow_html=True) 
-    # 6. BOTÓN ADMINISTRADOR (Casi invisible, al fondo)
-    st.markdown("""
-        <style>
-            .div-admin-final button {
-                height: 2.2em !important;
-                width: 160px !important;
-                font-size: 12px !important;
-                background: transparent !important;
-                border: 1px solid rgba(255,255,255,0.1) !important;
-                color: #555 !important;
-                display: block !important;
-                margin: 0 auto !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
-
-    st.markdown('<div class="div-admin-final">', unsafe_allow_html=True)
-    if st.button("Acceso Técnico"): 
-        st.session_state.view = 'login'
-        st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# --- 6. VISTA: LOGIN ---
-elif st.session_state.view == 'login':
-    st.markdown('<div class="main-card"><h3>ACCESO AUTORIZADO</h3>', unsafe_allow_html=True)
-    u = st.text_input("Usuario")
-    p = st.text_input("Clave", type="password")
-    if st.button("ENTRAR"):
-        if u == "percy" and p == "autogas2026": 
-            st.session_state.view = 'admin'; st.rerun()
-    if st.button("VOLVER"): st.session_state.view = 'home'; st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 7. VISTA: ADMINISTRADOR ---
-elif st.session_state.view == 'admin':
-    st.markdown(f'<div class="main-card"><h2>REGISTRO TÉCNICO - PASO {st.session_state.step_admin}</h2>', unsafe_allow_html=True)
-    
-    if st.session_state.step_admin == 1:
-        placa = st.text_input("PLACA DEL VEHÍCULO").upper().strip()
-        if st.button("CONTINUAR ➡️"):
-            df = get_data()
-            st.session_state.form = {"placa": placa}
-            match = df[df['placa'].astype(str) == placa] if 'placa' in df.columns else pd.DataFrame()
-            if not match.empty:
-                last = match.iloc[-1]
-                st.session_state.form.update({"marca": last.get('marca',''), "modelo": last.get('modelo',''), "año": last.get('año','')})
-                st.session_state.step_admin = 2
-            else: 
-                st.session_state.step_admin = 1.5
-            st.rerun()
-
-    elif st.session_state.step_admin == 1.5:
-        st.write("Vehículo no registrado. Complete los datos:")
-        st.session_state.form["marca"] = st.text_input("Marca")
-        st.session_state.form["modelo"] = st.text_input("Modelo")
-        st.session_state.form["año"] = st.text_input("Año")
-        if st.button("REGISTRAR Y SEGUIR"): 
-            st.session_state.step_admin = 2
-            st.rerun()
-
-    elif st.session_state.step_admin == 2:
-        st.write(f"**Auto:** {st.session_state.form['placa']} | {st.session_state.form['marca']}")
-        st.session_state.form["paquete"] = st.selectbox("Seleccione el Paquete Realizado", list(PAQUETES.keys()))
-        st.session_state.form["km"] = st.number_input("Kilometraje Actual", min_value=0)
-        if st.button("IR A DETALLES Y FOTOS ➡️"): 
-            st.session_state.step_admin = 3
-            st.rerun()
-
-    elif st.session_state.step_admin == 3:
-        paq_sel = st.session_state.form["paquete"]
-        st.subheader(f"📋 Checklist: {paq_sel}")
-        
-        for item in PAQUETES[paq_sel]:
-            st.checkbox(item, value=True, key=f"check_{item}")
-            
-        st.write("---")
-        st.session_state.form["obs"] = st.text_area("Cuadro de Observaciones del Técnico")
-        fotos = st.file_uploader("Subir fotos (Seleccionar de galería)", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
-        
-        if st.button("✅ FINALIZAR Y GUARDAR"):
-            with st.spinner("Guardando en la nube..."):
-                try:
-                    urls = []
-                    if fotos:
-                        for f in fotos:
-                            res = cloudinary.uploader.upload(f, folder=f"Autogas_{st.session_state.form['placa']}")
-                            urls.append(res['secure_url'])
-                    
-                    f = st.session_state.form
-                    db.append_row([
-                        datetime.now().strftime("%d/%m/%Y"), 
-                        f['placa'], f['marca'], f['modelo'], f['año'], 
-                        str(f['km']), f['paquete'], "Completado", f['obs'], ",".join(urls)
-                    ])
-                    st.success("¡Guardado correctamente!")
-                    st.session_state.view = 'home'
-                    st.session_state.step_admin = 1
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error técnico: {e}")
-                    st.info("Si el error es 403, verifica los permisos de la Hoja de Cálculo.")
-                    
-    st.markdown('</div>', unsafe_allow_html=True)
-
-# --- 8. VISTA: CLIENTE (CON BOTÓN DE BÚSQUEDA) ---
-elif st.session_state.view == 'cliente':
-    st.markdown('<div class="main-card">', unsafe_allow_html=True)
-    
-    # Campo de texto para la placa
-    placa_input = st.text_input("INGRESE SU PLACA PARA CONSULTAR").upper().strip()
-    
-    # Botón de búsqueda que guarda el estado
-    if st.button("🔍 BUSCAR VEHÍCULO"):
-        st.session_state.busqueda_activa = True
-
-    # Solo mostramos el contenido si la búsqueda está activa y hay una placa escrita
-    if st.session_state.get('busqueda_activa') and placa_input:
+if st.session_state.step_admin == 1:
+    placa = st.text_input("PLACA DEL VEHÍCULO").upper().strip()
+    if st.button("CONTINUAR ➡️"):
         df = get_data()
-        hist = df[df['placa'].astype(str) == placa_input].to_dict('records')
+        st.session_state.form = {"placa": placa}
         
-        if hist:
-            st.write("---")
-            c1, c2, c3 = st.columns(3)
-            if c1.button("PRÓXIMO\nMANTENIMIENTO"): st.session_state.c_tab = 'prox'
-            if c2.button("MANTENIMIENTO\nREALIZADO"): st.session_state.c_tab = 'actual'
-            if c3.button("OTROS \nSERVICIOS"): st.session_state.c_tab = 'hist'
+        # Verificar si la placa ya existe
+        if not df.empty and 'placa' in df.columns:
+            match = df[df['placa'].astype(str) == placa]
+        else:
+            match = pd.DataFrame()
             
-            # --- OPCIÓN 1: PREVENTIVO ---
-            if st.session_state.c_tab == 'prox':
-                prox_km = int(hist[-1]['km']) + 5000
-                st.markdown(f"""
-                    <div class="prox-box">
-                        <h2 style="color:white !important;">PRÓXIMO MANTENIMIENTO</h2>
-                        <p style="font-size:18px;">Su próximo mantenimiento en el taller <b>AUTOGAS ENERGY</b> es a los:</p>
-                        <h1 style="color:white !important; font-size:80px;">{prox_km} KM</h1>
-                    </div>
-                """, unsafe_allow_html=True)
-            
-            # --- OPCIÓN 2: MANTENIMIENTO REALIZADO ---
-            elif st.session_state.c_tab == 'actual':
-                st.subheader("Mantenimientos Recientes")
-                servicios = [hist[-1]] # Solo el último
-                for r in servicios:
-                    with st.expander(f"📅 {r['fecha']} | 📍 {r['km']} KM"):
-                        st.markdown(f"### Trabajo Realizado: **{r['paquete']}**")
-                        st.write("**Servicios incluidos:**")
-                        tareas_lista = PAQUETES.get(r['paquete'], ["Servicio General"])
-                        for item in tareas_lista:
-                            st.markdown(f'<div class="check-item">✅ {item}</div>', unsafe_allow_html=True)
-                        st.markdown("---")
-                        st.write(f"**Observaciones:** {r.get('notas', r.get('observaciones', 'Sin observaciones'))}")
-                        links = str(r.get('links_fotos','')).split(",")
-                        if links and links[0] != "":
-                            st.write("**Evidencia Visual:**")
-                            for url in links:
-                                if "http" in url: st.image(url, use_container_width=True)
-                        pdf_data = generar_pdf(r, tareas_lista)
-                        st.download_button(label="📥 Descargar Reporte PDF", data=pdf_data, file_name=f"Reporte_{r['placa']}.pdf", mime="application/pdf", key=f"btn_{r['km']}")
+        if not match.empty:
+            last = match.iloc[-1]
+            st.session_state.form.update({
+                "marca": last.get('marca',''), 
+                "modelo": last.get('modelo',''), 
+                "anio": last.get('anio','')
+            })
+            st.session_state.step_admin = 2
+        else: 
+            st.session_state.step_admin = 1.5
+        st.rerun()
 
-            # --- OPCIÓN 3: OTROS SERVICIOS (BLOQUEADO) ---
-            elif st.session_state.c_tab == 'hist':
-                st.markdown("<br>", unsafe_allow_html=True)
-                st.info("🔧 **Próximamente:** Aquí podrás visualizar tus diagnósticos y otros servicios adicionales. Por ahora, esta sección se encuentra en mantenimiento.")
-        else: st.warning("No se encontró historial para esta placa.")
+elif st.session_state.step_admin == 1.5:
+    st.write("Vehículo no registrado. Complete los datos:")
+    st.session_state.form["marca"] = st.text_input("Marca")
+    st.session_state.form["modelo"] = st.text_input("Modelo")
+    st.session_state.form["anio"] = st.text_input("Año")
+    if st.button("REGISTRAR Y SEGUIR"): 
+        st.session_state.step_admin = 2
+        st.rerun()
 
-    if st.button("⬅️ VOLVER AL INICIO"): st.session_state.view = 'home'; st.session_state.c_tab = 'none'; st.rerun()
-    st.markdown('</div>', unsafe_allow_html=True)
+elif st.session_state.step_admin == 2:
+    st.write(f"**Auto:** {st.session_state.form['placa']} | {st.session_state.form['marca']}")
+    st.session_state.form["paquete"] = st.selectbox("Seleccione el Paquete Realizado", list(PAQUETES.keys()))
+    st.session_state.form["km"] = st.number_input("Kilometraje Actual", min_value=0, step=100)
+    if st.button("IR A DETALLES Y FOTOS ➡️"): 
+        st.session_state.step_admin = 3
+        st.rerun()
+
+elif st.session_state.step_admin == 3:
+    paq_sel = st.session_state.form["paquete"]
+    st.subheader(f"📋 Checklist: {paq_sel}")
+    
+    for item in PAQUETES[paq_sel]:
+        st.checkbox(item, value=True, key=f"check_{item}")
+        
+    st.write("---")
+    st.session_state.form["obs"] = st.text_area("Cuadro de Observaciones del Técnico")
+    fotos = st.file_uploader("Subir fotos (Seleccionar de galería)", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
+    
+    if st.button("✅ FINALIZAR Y GUARDAR"):
+        with st.spinner("Guardando en la base de datos profesional..."):
+            try:
+                f = st.session_state.form
+                
+                # 1. Insertar el servicio principal en Supabase
+                service_data = {
+                    "placa": f['placa'],
+                    "marca": f.get('marca', ''),
+                    "modelo": f.get('modelo', ''),
+                    "anio": str(f.get('anio', '')),
+                    "km": int(f.get('km', 0)),
+                    "paquete": f['paquete'],
+                    "estado": "Completado",
+                    "observaciones": f.get('obs', '')
+                }
+                
+                res_service = supabase.table("servicios").insert(service_data).execute()
+                
+                if res_service.data:
+                    # Obtener el ID del servicio recién creado
+                    servicio_id = res_service.data[0]['id']
+                    
+                    # 2. Subir fotos a Cloudinary y registrar los links en la tabla 'fotos' de Supabase
+                    if fotos:
+                        for foto in fotos:
+                            upload_res = cloudinary.uploader.upload(foto, folder=f"Autogas_{f['placa']}")
+                            secure_url = upload_res['secure_url']
+                            
+                            # Guardar la relación en la base de datos
+                            supabase.table("fotos").insert({
+                                "servicio_id": servicio_id,
+                                "url_foto": secure_url
+                            }).execute()
+                    
+                    st.success("¡Servicio y evidencias guardadas con éxito en Supabase!")
+                    st.session_state.step_admin = 1
+                    st.session_state.form = {}
+                    st.rerun()
+                else:
+                    st.error("No se pudo registrar el servicio en la base de datos.")
+                    
+            except Exception as e:
+                st.error(f"Error técnico al guardar: {e}")
+                
+st.markdown('</div>', unsafe_allow_html=True)
