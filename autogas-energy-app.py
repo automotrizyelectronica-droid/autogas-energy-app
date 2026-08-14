@@ -341,7 +341,7 @@ elif st.session_state.view == 'cliente':
                 st.subheader("Mantenimientos Recientes")
                 servicios = [hist[-1]] # Solo el último
                 for r in servicios:
-                    with st.expander(f"📅 {r['fecha']} | 📍 {r['km']} KM"):
+                    with st.expander(f"📅 {r.get('created_at', 'Sin fecha')} | 📍 {r['km']} KM"):
                         st.markdown(f"### Trabajo Realizado: **{r['paquete']}**")
                         st.write("**Servicios incluidos:**")
                         tareas_lista = PAQUETES.get(r['paquete'], ["Servicio General"])
