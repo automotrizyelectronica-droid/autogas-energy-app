@@ -135,9 +135,16 @@ if 'step_admin' not in st.session_state: st.session_state.step_admin = 1
 if 'c_tab' not in st.session_state: st.session_state.c_tab = 'none'
 
 def get_data():
-    df = pd.DataFrame(db.get_all_records())
-    df.columns = [c.lower().strip() for c in df.columns]
-    return df
+    try:
+        response = db.table("servicios").select("*").execute()
+        if response.data:
+            df = pd.DataFrame(response.data)
+            df.columns = [c.lower().strip() for c in df.columns]
+            return df
+        return pd.DataFrame(columns=['placa', 'marca', 'modelo', 'año', 'km', 'paquete', 'estado', 'observaciones', 'links_fotos'])
+    except Exception as e:
+        st.error(f"Error al leer la base de datos: {e}")
+        return pd.DataFrame()
 
 # --- 5. VISTA: HOME ---
 if st.session_state.view == 'home':
