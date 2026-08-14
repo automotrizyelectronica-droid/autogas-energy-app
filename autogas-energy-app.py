@@ -280,7 +280,7 @@ elif st.session_state.view == 'admin':
                         "placa": f['placa'],
                         "marca": f.get('marca', ''),
                         "modelo": f.get('modelo', ''),
-                        "año": str(f.get('año', '')),
+                        "anio": str(f.get('año', '')),
                         "km": int(f.get('km', 0)),
                         "paquete": f['paquete'],
                         "estado": "Completado",
