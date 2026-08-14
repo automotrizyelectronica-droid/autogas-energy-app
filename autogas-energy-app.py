@@ -33,7 +33,7 @@ def get_data():
             df = pd.DataFrame(response.data)
             df.columns = [c.lower().strip() for c in df.columns]
             return df
-        return pd.DataFrame(columns=['placa', 'marca', 'modelo', 'año', 'km', 'paquete', 'estado', 'observaciones'])
+        return pd.DataFrame(columns=['placa', 'marca', 'modelo', 'año', 'km', 'paquete', 'estado', 'observaciones', 'links_fotos'])
     except Exception as e:
         st.error(f"Error al leer la base de datos: {e}")
         return pd.DataFrame()
