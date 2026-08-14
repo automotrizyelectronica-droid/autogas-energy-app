@@ -7,3 +7,5 @@ google-api-python-client
 cloudinary
 fpdf2
 requests
+pandas
+supabase
