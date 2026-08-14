@@ -218,6 +218,7 @@ elif st.session_state.view == 'login':
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 7. VISTA: ADMINISTRADOR ---
+# --- 7. VISTA: ADMINISTRADOR ---
 elif st.session_state.view == 'admin':
     st.markdown(f'<div class="main-card"><h2>REGISTRO TÉCNICO - PASO {st.session_state.step_admin}</h2>', unsafe_allow_html=True)
     
@@ -231,7 +232,8 @@ elif st.session_state.view == 'admin':
                 last = match.iloc[-1]
                 st.session_state.form.update({"marca": last.get('marca',''), "modelo": last.get('modelo',''), "año": last.get('año','')})
                 st.session_state.step_admin = 2
-            else: st.session_state.step_admin = 1.5
+            else: 
+                st.session_state.step_admin = 1.5
             st.rerun()
 
     elif st.session_state.step_admin == 1.5:
@@ -239,13 +241,17 @@ elif st.session_state.view == 'admin':
         st.session_state.form["marca"] = st.text_input("Marca")
         st.session_state.form["modelo"] = st.text_input("Modelo")
         st.session_state.form["año"] = st.text_input("Año")
-        if st.button("REGISTRAR Y SEGUIR"): st.session_state.step_admin = 2; st.rerun()
+        if st.button("REGISTRAR Y SEGUIR"): 
+            st.session_state.step_admin = 2
+            st.rerun()
 
     elif st.session_state.step_admin == 2:
         st.write(f"**Auto:** {st.session_state.form['placa']} | {st.session_state.form['marca']}")
         st.session_state.form["paquete"] = st.selectbox("Seleccione el Paquete Realizado", list(PAQUETES.keys()))
         st.session_state.form["km"] = st.number_input("Kilometraje Actual", min_value=0)
-        if st.button("IR A DETALLES Y FOTOS ➡️"): st.session_state.step_admin = 3; st.rerun()
+        if st.button("IR A DETALLES Y FOTOS ➡️"): 
+            st.session_state.step_admin = 3
+            st.rerun()
 
     elif st.session_state.step_admin == 3:
         paq_sel = st.session_state.form["paquete"]
@@ -258,25 +264,11 @@ elif st.session_state.view == 'admin':
         fotos = st.file_uploader("Evidencia Fotográfica (Cámara/Galería)", accept_multiple_files=True)
         
         if st.button("✅ FINALIZAR Y GUARDAR TODO"):
-            elif st.session_state.step_admin == 3:
-        paq_sel = st.session_state.form["paquete"]
-        st.subheader(f"📋 Checklist: {paq_sel}")
-        for item in PAQUETES[paq_sel]:
-            st.checkbox(item, value=True, key=f"check_{item}")
-        
-        st.write("---")
-        st.session_state.form["obs"] = st.text_area("Cuadro de Observaciones del Técnico")
-        fotos = st.file_uploader("Evidencia Fotográfica (Cámara/Galería)", accept_multiple_files=True)
-        
-        if st.button("✅ FINALIZAR Y GUARDAR TODO"):
             with st.spinner("Subiendo datos y fotos a Supabase (Pro)..."):
                 try:
-                    # 1. Subir fotos a Cloudinary
                     urls = [cloudinary.uploader.upload(f.getvalue(), folder=f"Autogas_{st.session_state.form['placa']}")['secure_url'] for f in fotos] if fotos else []
-                    
                     f = st.session_state.form
                     
-                    # 2. Insertar servicio principal en Supabase
                     service_data = {
                         "placa": f['placa'],
                         "marca": f.get('marca', ''),
@@ -286,7 +278,7 @@ elif st.session_state.view == 'admin':
                         "paquete": f['paquete'],
                         "estado": "Completado",
                         "observaciones": f.get('obs', ''),
-                        "links_fotos": ",".join(urls) # Mantiene la compatibilidad con tu visor de cliente actual
+                        "links_fotos": ",".join(urls)
                     }
                     
                     res = db.table("servicios").insert(service_data).execute()
@@ -300,6 +292,7 @@ elif st.session_state.view == 'admin':
                         st.error("No se pudo completar el registro.")
                 except Exception as e:
                     st.error(f"Error técnico: {e}")
+                    
     st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 8. VISTA: CLIENTE (CON BOTÓN DE BÚSQUEDA) ---
